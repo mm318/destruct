@@ -1,0 +1,31 @@
+name: Continuous Build
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  schedule:
+    - cron: '0 5 * * *' # run at 5 AM UTC
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y libsdl2-dev libsdl2-image-dev libwebp-dev
+
+      - uses: actions/checkout@v4
+
+      - uses: mlugg/setup-zig@v1
+        with:
+          version: 0.13.0
+
+      - name: SDL version
+        run: sdl2-config --version
+
+      - name: Build game
+        run: zig build
