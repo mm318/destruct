@@ -207,7 +207,7 @@ void JE_paramCheck(int argc, char *argv[])
 			break;
 			
 		case 'r':
-			record_demo = true;
+			// record_demo = true;
 			break;
 			
 		case 'l':
@@ -237,7 +237,7 @@ void JE_paramCheck(int argc, char *argv[])
 					richMode = true;
 					break;
 				case 1:
-					record_demo = true;
+					// record_demo = true;
 					break;
 				case 2:
 					ignore_joystick = true;

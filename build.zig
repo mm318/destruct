@@ -8,7 +8,6 @@ const tyrian_srcs = [_][]const u8{
     "src/lib/config.c",
     "src/lib/config_file.c",
     "src/lib/destruct.c",
-    "src/lib/editship.c",
     "src/lib/episodes.c",
     "src/lib/file.c",
     "src/lib/font.c",

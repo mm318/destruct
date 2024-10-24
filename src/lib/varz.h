@@ -251,13 +251,6 @@ extern JE_byte flash;
 extern JE_shortint flashChange;
 extern JE_byte displayTime;
 
-extern bool play_demo, record_demo, stopped_demo;
-extern Uint8 demo_num;
-extern FILE *demo_file;
-
-extern Uint8 demo_keys;
-extern Uint16 demo_keys_wait;
-
 extern JE_byte soundQueue[8];
 extern JE_boolean enemyContinualDamage;
 extern JE_boolean enemiesActive;
@@ -271,7 +264,6 @@ extern JE_boolean levelTimer;
 extern JE_word levelTimerCountdown;
 extern JE_word levelTimerJumpTo;
 extern JE_boolean randomExplosions;
-extern JE_boolean editShip1, editShip2;
 extern JE_boolean globalFlags[10];
 extern JE_byte levelSong;
 extern JE_boolean loadDestruct;
@@ -329,7 +321,6 @@ static const int hud_sidekick_y[2][2] =
 };
 
 void JE_getShipInfo(void);
-JE_word JE_SGr(JE_word ship, Sprite2_array **ptr);
 
 void JE_drawOptions(void);
 

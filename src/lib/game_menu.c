@@ -1894,9 +1894,6 @@ void JE_drawItem(JE_byte itemType, JE_word itemNum, JE_word x, JE_word y)
 		{
 			if (itemNum > 90)
 			{
-				shipGrPtr = &spriteSheet9;
-				shipGr = JE_SGr(itemNum - 90, &shipGrPtr);
-				blit_sprite2x2(VGAScreen, x, y, *shipGrPtr, shipGr);
 			}
 			else if (ships[itemNum].shipgraphic > 500)
 			{
