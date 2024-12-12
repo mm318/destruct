@@ -85,18 +85,7 @@ pub fn main() u8 {
     c.load_music();
     c.loadSndFile(false);
 
-    while (true) {
-        if (c.loadDestruct) {
-            c.JE_destructGame();
-            c.loadDestruct = false;
-        } else {
-            c.JE_main();
-            if (c.trentWin) {
-                // Player beat SuperTyrian.
-                break;
-            }
-        }
-    }
+    c.JE_destructGame();
 
     c.JE_tyrianHalt(0);
 
