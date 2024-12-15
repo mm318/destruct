@@ -17,7 +17,6 @@ const c = @cImport({
     @cInclude("varz.h");
     @cInclude("loudness.h");
     @cInclude("nortsong.h");
-    @cInclude("tyrian2.h");
 });
 
 pub fn main() u8 {
