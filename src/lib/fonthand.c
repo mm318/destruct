@@ -47,20 +47,6 @@ const int font_ascii[256] =
 	 -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,
 };
 
-/* shape constants included in newshape.h */
-
-JE_byte textGlowFont, textGlowBrightness = 6;
-
-JE_boolean levelWarningDisplay;
-JE_byte levelWarningLines;
-char levelWarningText[12][61]; /* [1..10] of string [60] */
-JE_boolean warningRed;
-
-JE_byte warningSoundDelay;
-JE_word armorShipDelay;
-JE_byte warningCol;
-JE_shortint warningColChange;
-
 
 int JE_fontCenter(const char *s, unsigned int font)
 {

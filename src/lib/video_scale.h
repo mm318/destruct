@@ -34,7 +34,6 @@ struct Scalers
 
 extern uint scaler;
 extern const struct Scalers scalers[];
-extern const uint scalers_count;
 
 void set_scaler_by_name(const char *name);
 

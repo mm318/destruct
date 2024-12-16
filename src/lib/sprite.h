@@ -99,10 +99,6 @@ extern Sprite2_array shopSpriteSheet;  // fka shapes6
 // Explosions sprite sheet.
 extern Sprite2_array explosionSpriteSheet;  // fka shapes6
 
-// Enemy sprite sheet banks.
-extern Sprite2_array enemySpriteSheets[4];  // fka eShapes1, eShapes2, eShapes3, eShapes4
-extern Uint8 enemySpriteSheetIds[4];  // fka enemyShapeTables
-
 // Destruct sprite sheet.
 extern Sprite2_array destructSpriteSheet;  // fka shapes6
 
@@ -119,18 +115,6 @@ void JE_loadCompShapesB(Sprite2_array *, FILE *f);
 void free_sprite2s(Sprite2_array *);
 
 void blit_sprite2(SDL_Surface *, int x, int y, Sprite2_array, unsigned int index);
-void blit_sprite2_clip(SDL_Surface *, int x, int y, Sprite2_array, unsigned int index);
-void blit_sprite2_blend(SDL_Surface *,  int x, int y, Sprite2_array, unsigned int index);
-void blit_sprite2_darken(SDL_Surface *, int x, int y, Sprite2_array, unsigned int index);
-void blit_sprite2_filter(SDL_Surface *, int x, int y, Sprite2_array, unsigned int index, Uint8 filter);
-void blit_sprite2_filter_clip(SDL_Surface *, int x, int y, Sprite2_array, unsigned int index, Uint8 filter);
-
-void blit_sprite2x2(SDL_Surface *, int x, int y, Sprite2_array, unsigned int index);
-void blit_sprite2x2_clip(SDL_Surface *, int x, int y, Sprite2_array, unsigned int index);
-void blit_sprite2x2_blend(SDL_Surface *, int x, int y, Sprite2_array, unsigned int index);
-void blit_sprite2x2_darken(SDL_Surface *, int x, int y, Sprite2_array, unsigned int index);
-void blit_sprite2x2_filter(SDL_Surface *, int x, int y, Sprite2_array, unsigned int index, Uint8 filter);
-void blit_sprite2x2_filter_clip(SDL_Surface *, int x, int y, Sprite2_array, unsigned int index, Uint8 filter);
 
 void JE_loadMainShapeTables(const char *shpfile);
 void free_main_shape_tables(void);

@@ -22,22 +22,17 @@
 #include "joystick.h"
 #include "keyboard.h"
 #include "loudness.h"
-#include "musmast.h"
 #include "opentyr.h"
 #include "params.h"
-#include "sndmast.h"
 #include "vga256d.h"
 
 #include "SDL.h"
-
-JE_word frameCountMax;
 
 Sint16 *soundSamples[SOUND_COUNT] = { NULL }; /* [1..soundnum + 9] */  // FKA digiFx
 size_t soundSampleCount[SOUND_COUNT] = { 0 }; /* [1..soundnum + 9] */  // FKA fxSize
 
 JE_word tyrMusicVolume, fxVolume;
 const JE_word fxPlayVol = 4;
-JE_word tempVolume;
 
 // The period of the x86 programmable interval timer in milliseconds.
 static const float pitPeriod = (12.0f / 14318180.0f) * 1000.0f;

@@ -3,20 +3,20 @@ const SDL = @import("sdl2");
 const target_os = @import("builtin").os;
 
 const c = @cImport({
-    @cInclude("destruct.h");
-    @cInclude("mtrand.h");
     @cInclude("time.h");
-    @cInclude("params.h");
-    @cInclude("helptext.h");
+    @cInclude("destruct.h");
     @cInclude("config.h");
-    @cInclude("video.h");
-    @cInclude("keyboard.h");
+    @cInclude("helptext.h");
     @cInclude("joystick.h");
-    @cInclude("palette.h");
-    @cInclude("sprite.h");
+    @cInclude("keyboard.h");
     @cInclude("loudness.h");
+    @cInclude("mtrand.h");
     @cInclude("nortsong.h");
+    @cInclude("palette.h");
+    @cInclude("params.h");
+    @cInclude("sprite.h");
     @cInclude("varz.h");
+    @cInclude("video.h");
 });
 
 pub fn main() u8 {

@@ -124,15 +124,6 @@ extern const MouseSettings defaultMouseSettings;
 extern char defaultHighScoreNames[39][23];
 extern char defaultTeamNames[10][25];
 extern const JE_EditorItemAvailType initialItemAvail;
-extern JE_boolean smoothies[9];
-extern JE_byte starShowVGASpecialCode;
-extern JE_word lastCubeMax, cubeMax;
-extern JE_word cubeList[4];
-extern JE_boolean gameHasRepeated;
-extern JE_shortint difficultyLevel, oldDifficultyLevel, initialDifficulty;
-extern JE_byte timeBattleSelection;
-extern uint power, lastPower, powerAdd;
-extern JE_byte shieldWait, shieldT;
 
 enum
 {
@@ -149,31 +140,15 @@ enum
 	SHOT_SPECIAL2
 };
 
-extern JE_byte shotRepeat[11], shotMultiPos[11];
-extern JE_boolean portConfigChange, portConfigDone;
-extern char lastLevelName[11], levelName[11];
-extern JE_byte mainLevel, nextLevel, saveLevel;
 extern DosKeySettings dosKeySettings;  // fka keySettings
 extern KeySettings keySettings;
 extern MouseSettings mouseSettings;
-extern JE_shortint levelFilter, levelFilterNew, levelBrightness, levelBrightnessChg;
-extern JE_boolean filtrationAvail, filterActive, filterFade, filterFadeStart;
-extern JE_boolean gameJustLoaded;
-extern JE_boolean galagaMode;
-extern JE_boolean extraGame;
-extern JE_boolean twoPlayerMode, twoPlayerLinked, onePlayerAction, timedBattleMode, superTyrian, trentWin;
-extern JE_byte superArcadeMode;
-extern JE_byte superArcadePowerUp;
-extern JE_real linkGunDirec;
+extern JE_boolean trentWin;
 extern JE_byte inputDevice[2];
-extern JE_byte secretHint;
-extern JE_byte background3over;
-extern JE_byte background2over;
 extern JE_byte gammaCorrection;
-extern JE_boolean superPause, explosionTransparent, youAreCheating, displayScore, background2, smoothScroll, wild, superWild, starActive, topEnemyOver, skyEnemyOverAll, background2notTransparent;
+extern JE_boolean youAreCheating, smoothScroll;
 extern JE_byte versionNum;
 extern JE_byte fastPlay;
-extern JE_boolean pentiumMode;
 extern JE_byte gameSpeed;
 extern JE_byte processorType;
 extern JE_SaveFilesType saveFiles;
@@ -183,13 +158,11 @@ extern JE_word editorLevel;
 extern Config opentyrian_config;
 
 void JE_initProcessorType(void);
-void JE_setNewGameSpeed(void);
 const char *get_user_directory(void);
 void JE_loadConfiguration(void);
 void JE_saveConfiguration(void);
 
 void JE_saveGame(JE_byte slot, const char *name);
-void JE_loadGame(JE_byte slot);
 
 void JE_encryptSaveTemp(void);
 void JE_decryptSaveTemp(void);

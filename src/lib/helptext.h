@@ -29,11 +29,6 @@
 
 #define DESTRUCT_MODES 5
 
-extern const JE_byte menuHelp[MENU_MAX][11];   /* [1..14, 1..11] */
-
-extern JE_byte verticalHeight;
-extern JE_byte helpBoxColor, helpBoxBrightness, helpBoxShadeType;
-
 #define HELPTEXT_MISCTEXT_COUNT 72
 #define HELPTEXT_MISCTEXTB_COUNT 8
 #define HELPTEXT_MISCTEXTB_SIZE 12
@@ -49,7 +44,6 @@ extern char helpTxt[39][231];
 extern char pName[21][16];
 extern char miscText[HELPTEXT_MISCTEXT_COUNT][42];
 extern char miscTextB[HELPTEXT_MISCTEXTB_COUNT][HELPTEXT_MISCTEXTB_SIZE];
-extern char keyName[8][18];
 extern char menuText[7][HELPTEXT_MENUTEXT_SIZE];
 extern char outputs[9][31];
 extern char topicName[6][21];
@@ -75,8 +69,6 @@ extern char menuInt[MENU_MAX+1][11][18];
 void read_encrypted_pascal_string(char *s, size_t size, FILE *f);
 void skip_pascal_string(FILE *f);
 
-void JE_helpBox(SDL_Surface *screen, int x, int y, const char *message, unsigned int boxwidth);
-void JE_HBox(SDL_Surface *screen, int x, int y, unsigned int  messagenum, unsigned int boxwidth);
 void JE_loadHelpText(void);
 
 #endif /* HELPTEXT_H */

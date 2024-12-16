@@ -27,7 +27,6 @@
 
 #define SDL_POLL_INTERVAL 10
 
-extern JE_boolean ESCPressed;
 extern JE_boolean newkey, newmouse, keydown, mousedown;
 extern SDL_Scancode lastkey_scan;
 extern SDL_Keymod lastkey_mod;

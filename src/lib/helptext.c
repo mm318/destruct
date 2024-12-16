@@ -27,35 +27,10 @@
 #include <assert.h>
 #include <string.h>
 
-const JE_byte menuHelp[MENU_MAX][11] = /* [1..maxmenu, 1..11] */
-{
-	{  1, 34,  2,  3,  4,  5,                  0, 0, 0, 0, 0 },
-	{  6,  7,  8,  9, 10, 11, 11, 12,                0, 0, 0 },
-	{ 13, 14, 15, 15, 16, 17, 35, 12,                0, 0, 0 },
-	{                        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-	{                        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-	{                        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-	{                        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-	{                        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-	{                        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-	{  4, 30, 30,  3,  5,                   0, 0, 0, 0, 0, 0 },
-	{  4, 37, 12,                     0, 0, 0, 0, 0, 0, 0, 0 },
-	{ 16, 17, 15, 15, 12,                   0, 0, 0, 0, 0, 0 },
-	{ 31, 31, 31, 31, 32, 12,                  0, 0, 0, 0, 0 },
-	{  4, 34,  3,  5,                    0, 0, 0, 0, 0, 0, 0 },
-	{ 35, 35, 35, 36, 12,                   0, 0, 0, 0, 0, 0 }
-};
-
-JE_byte verticalHeight = 7;
-JE_byte helpBoxColor = 12;
-JE_byte helpBoxBrightness = 1;
-JE_byte helpBoxShadeType = FULL_SHADE;
-
 char helpTxt[39][231];                                                   /* [1..39] of string [230] */
 char pName[21][16];                                                      /* [1..21] of string [15] */
 char miscText[HELPTEXT_MISCTEXT_COUNT][42];                              /* [1..68] of string [41] */
 char miscTextB[HELPTEXT_MISCTEXTB_COUNT][HELPTEXT_MISCTEXTB_SIZE];       /* [1..5] of string [10] */
-char keyName[8][18];                                                     /* [1..8] of string [17] */
 char menuText[7][HELPTEXT_MENUTEXT_SIZE];                                /* [1..7] of string [20] */
 char outputs[9][31];                                                     /* [1..9] of string [30] */
 char topicName[6][21];                                                   /* [1..6] of string [20] */

@@ -58,10 +58,6 @@ extern UDPpacket *packet_in[], *packet_out[],
 #endif
 
 extern uint thisPlayerNum;
-extern JE_boolean haltGame;
-extern JE_boolean moveOk;
-extern JE_boolean pauseRequest, skipLevelRequest, helpRequest, nortShipRequest;
-extern JE_boolean yourInGameMenuRequest, inGameMenuRequest;
 
 #ifdef WITH_NETWORK
 void network_prepare(Uint16 type);

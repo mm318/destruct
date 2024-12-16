@@ -109,43 +109,8 @@ const JE_EditorItemAvailType initialItemAvail =
 	0,0,0,0,0                                                                        /* Fill                     */
 };
 
-/* Last 2 bytes = Word
- *
- * Max Value = 1680
- * X div  60 = Armor  (1-28)
- * X div 168 = Shield (1-12)
- * X div 280 = Engine (1-06)
- */
-
-JE_boolean smoothies[9] = /* [1..9] */
-{ 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-
-JE_byte starShowVGASpecialCode;
-
-/* CubeData */
-JE_word lastCubeMax, cubeMax;
-JE_word cubeList[4]; /* [1..4] */
-
-/* High-Score Stuff */
-JE_boolean gameHasRepeated;  // can only get highscore on first play-through
-
 /* Difficulty */
-JE_shortint difficultyLevel, oldDifficultyLevel,
-            initialDifficulty;  // can only get highscore on initial episode
-
-/* Timed Battle */
-JE_byte timeBattleSelection;
-
-/* Player Stuff */
-uint    power, lastPower, powerAdd;
-JE_byte shieldWait, shieldT;
-
-JE_byte          shotRepeat[11], shotMultiPos[11];
-JE_boolean       portConfigChange, portConfigDone;
-
-/* Level Data */
-char    lastLevelName[11], levelName[11]; /* string [10] */
-JE_byte mainLevel, nextLevel, saveLevel;   /*Current Level #*/
+JE_shortint difficultyLevel;  // can only get highscore on initial episode
 
 /* Keyboard Junk */
 DosKeySettings dosKeySettings;
@@ -155,43 +120,23 @@ KeySettings keySettings;
 MouseSettings mouseSettings;
 
 /* Configuration */
-JE_shortint levelFilter, levelFilterNew, levelBrightness, levelBrightnessChg;
-JE_boolean  filtrationAvail, filterActive, filterFade, filterFadeStart;
+JE_boolean filtrationAvail;
 
-JE_boolean gameJustLoaded;
-
-JE_boolean galagaMode;
-
-JE_boolean extraGame;
-
-JE_boolean twoPlayerMode, twoPlayerLinked, onePlayerAction, timedBattleMode, superTyrian;
 JE_boolean trentWin = false;
-JE_byte    superArcadeMode;
 
-JE_byte    superArcadePowerUp;
-
-JE_real linkGunDirec;
 JE_byte inputDevice[2] = { 1, 2 }; // 0:any  1:keyboard  2:mouse  3+:joystick
 
-JE_byte secretHint;
-JE_byte background3over;
-JE_byte background2over;
 JE_byte gammaCorrection;
-JE_boolean superPause = false;
 JE_boolean explosionTransparent,
            youAreCheating,
            displayScore,
-           background2, smoothScroll, wild, superWild, starActive,
-           topEnemyOver,
-           skyEnemyOverAll,
-           background2notTransparent;
+           background2, smoothScroll, wild, superWild;
 
 JE_byte soundEffects; // dummy value for config
 JE_byte versionNum;   /* SW 1.0 and SW/Reg 1.1 = 0 or 1
                        * EA 1.2 = 2        T2K = 3*/
 
 JE_byte    fastPlay;
-JE_boolean pentiumMode;
 
 /* Savegame files */
 JE_byte    gameSpeed;
@@ -862,7 +807,7 @@ void JE_saveConfiguration(void)
 			JE_longint templi;
 			JE_byte len;
 
-			for (y = 0; y < 3; ++y)
+			for (int y = 0; y < 3; ++y)
 			{
 				templi = SDL_SwapLE32(t2kHighScores[z][y].score);
 				len = strlen(t2kHighScores[z][y].playerName);
@@ -878,7 +823,7 @@ void JE_saveConfiguration(void)
 			JE_longint templi;
 			JE_byte len;
 
-			for (y = 0; y < 3; ++y)
+			for (int y = 0; y < 3; ++y)
 			{
 				templi = SDL_SwapLE32(t2kHighScores[z][y].score);
 				len = strlen(t2kHighScores[z][y].playerName);

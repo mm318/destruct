@@ -29,8 +29,6 @@
 
 #include <stdio.h>
 
-JE_boolean ESCPressed;
-
 JE_boolean newkey, newmouse, keydown, mousedown;
 SDL_Scancode lastkey_scan;
 SDL_Keymod lastkey_mod;
