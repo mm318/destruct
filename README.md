@@ -2,6 +2,8 @@
 
 Standalone destruct minigame from Tyrian 2000 (https://tyrian.fandom.com/wiki/Destruct).
 
+![Destruct game screenshot](assets/screenshot.png "Destruct game screenshot")
+
 
 ## Usage
 
