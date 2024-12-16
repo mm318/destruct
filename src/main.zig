@@ -14,9 +14,9 @@ const c = @cImport({
     @cInclude("joystick.h");
     @cInclude("palette.h");
     @cInclude("sprite.h");
-    @cInclude("varz.h");
     @cInclude("loudness.h");
     @cInclude("nortsong.h");
+    @cInclude("varz.h");
 });
 
 pub fn main() u8 {
@@ -77,7 +77,6 @@ pub fn main() u8 {
     // Default Options
     c.youAreCheating = false;
     c.smoothScroll = true;
-    c.loadDestruct = true;
 
     std.log.debug("initializing SDL audio...", .{});
     _ = c.init_audio();

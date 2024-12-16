@@ -20,7 +20,6 @@
 
 #include "config.h"
 #include "joystick.h"
-#include "mouse.h"
 #include "network.h"
 #include "opentyr.h"
 #include "video.h"
@@ -133,7 +132,6 @@ void service_SDL_events(JE_boolean clear_new)
 				lastkey_mod = ev.key.keysym.mod;
 				keydown = true;
 
-				mouseInactive = true;
 				return;
 
 			case SDL_KEYUP:
@@ -156,14 +154,11 @@ void service_SDL_events(JE_boolean clear_new)
 				SDL_ShowCursor(mouse_x < 0 || mouse_x >= vga_width ||
 				               mouse_y < 0 || mouse_y >= vga_height ? SDL_TRUE : SDL_FALSE);
 
-				if (ev.motion.xrel != 0 || ev.motion.yrel != 0)
-					mouseInactive = false;
 				break;
 
 			case SDL_MOUSEBUTTONDOWN:
-				mouseInactive = false;
-
 				// fall through
+
 			case SDL_MOUSEBUTTONUP:
 				mapWindowPointToScreen(&ev.button.x, &ev.button.y);
 				if (ev.type == SDL_MOUSEBUTTONDOWN)

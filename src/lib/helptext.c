@@ -19,10 +19,8 @@
 #include "helptext.h"
 
 #include "config.h"
-#include "episodes.h"
 #include "file.h"
 #include "fonthand.h"
-#include "menus.h"
 #include "opentyr.h"
 #include "video.h"
 
@@ -125,13 +123,19 @@ void skip_pascal_string(FILE *f)
 	fread_die(buffer, 1, len, f);
 }
 
-
+#define GAMEPLAY_NAME_COUNT 6
 
 void JE_loadHelpText(void)
 {
+	JE_longint episode1DataLoc;
+	char episode_name[6][31];
+	char difficulty_name[7][21];
+	char gameplay_name[GAMEPLAY_NAME_COUNT][26];
+	char timed_battle_name[4][23];
+
 	const unsigned int menuInt_entries[MENU_MAX + 1] = { -1, 7, 9, 9, -1, -1, 11, -1, -1, -1, 6, 4, 7, 7, 5, 6 };
 	const unsigned int setup_entries[10] = {10, 5, 4, 4, 5, 7, 7, 21, 3, 3};
-	
+
 	FILE *f = dir_fopen_die(data_dir(), "tyrian.hdt", "rb");
 	fread_s32_die(&episode1DataLoc, 1, f);
 

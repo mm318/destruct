@@ -19,13 +19,12 @@
 #ifndef VARZ_H
 #define VARZ_H
 
-#include "episodes.h"
 #include "opentyr.h"
-#include "player.h"
 #include "sprite.h"
 
 #include <stdbool.h>
 
+#define PORT_NUM    60
 #define SA 9
 
 enum
@@ -329,7 +328,6 @@ void JE_specialComplete(JE_byte playernum, JE_byte specialType);
 void JE_doSpecialShot(JE_byte playernum, uint *armor, uint *shield);
 
 void JE_wipeShieldArmorBars(void);
-JE_byte JE_playerDamage(JE_byte temp, Player *);
 
 void JE_setupExplosion(signed int x, signed int y, signed int delta_y, unsigned int type, bool fixed_position, bool follow_player);
 void JE_setupExplosionLarge(JE_boolean enemyground, JE_byte explonum, JE_integer x, JE_integer y);

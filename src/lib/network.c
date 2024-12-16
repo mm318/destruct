@@ -18,13 +18,10 @@
  */
 #include "network.h"
 
-#include "episodes.h"
 #include "fonthand.h"
 #include "helptext.h"
 #include "joystick.h"
 #include "keyboard.h"
-#include "mainint.h"
-#include "nortvars.h"
 #include "opentyr.h"
 #include "picload.h"
 #include "sprite.h"

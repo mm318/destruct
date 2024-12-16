@@ -25,7 +25,6 @@
 #include "network.h"
 #include "opentyr.h"
 #include "varz.h"
-#include "xmas.h"
 
 #include <assert.h>
 #include <ctype.h>
@@ -112,11 +111,6 @@ void JE_paramCheck(int argc, char *argv[])
 			ignore_joystick = true;
 			break;
 			
-		case 'x':
-			override_xmas = true;
-			xmas = false;
-			break;
-			
 		// set custom Tyrian data directory
 		case 't':
 			custom_data_dir = option.arg;
@@ -190,10 +184,6 @@ void JE_paramCheck(int argc, char *argv[])
 			}
 			break;
 		}
-		case 'X':
-			override_xmas = true;
-			xmas = true;
-			break;
 			
 		case 'c':
 			/* Constant play for testing purposes (C key activates invincibility)
@@ -251,15 +241,6 @@ void JE_paramCheck(int argc, char *argv[])
 				case 5:
 					audio_disabled = true;
 					break;
-				case 6:
-					override_xmas = true;
-					xmas = false;
-					break;
-				case 7:
-					override_xmas = true;
-					xmas = true;
-					break;
-					
 				default:
 					assert(false);
 					break;
