@@ -9,7 +9,6 @@ const tyrian_srcs = [_][]const u8{
     "src/lib/file.c",
     "src/lib/fonthand.c",
     "src/lib/helptext.c",
-    "src/lib/joystick.c",
     "src/lib/keyboard.c",
     "src/lib/lds_play.c",
     "src/lib/loudness.c",

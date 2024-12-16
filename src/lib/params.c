@@ -20,7 +20,6 @@
 
 #include "arg_parse.h"
 #include "file.h"
-#include "joystick.h"
 #include "loudness.h"
 #include "network.h"
 #include "opentyr.h"
@@ -104,11 +103,6 @@ void JE_paramCheck(int argc, char *argv[])
 		case 's':
 			// Disables sound/music usage
 			audio_disabled = true;
-			break;
-			
-		case 'j':
-			// Disables joystick detection
-			ignore_joystick = true;
 			break;
 			
 		// set custom Tyrian data directory
@@ -215,7 +209,9 @@ void JE_paramCheck(int argc, char *argv[])
 	for (int i = option.argn; i < argc; ++i)
 	{
 		for (uint j = 0; j < strlen(argv[i]); ++j)
+		{
 			argv[i][j] = toupper((unsigned char)argv[i][j]);
+		}
 		
 		for (uint j = 0; j < COUNTOF(pars); ++j)
 		{
@@ -225,12 +221,6 @@ void JE_paramCheck(int argc, char *argv[])
 				{
 				case 0:
 					richMode = true;
-					break;
-				case 1:
-					// record_demo = true;
-					break;
-				case 2:
-					ignore_joystick = true;
 					break;
 				case 3:
 					constantPlay = true;

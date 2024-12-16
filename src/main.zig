@@ -7,7 +7,6 @@ const c = @cImport({
     @cInclude("destruct.h");
     @cInclude("config.h");
     @cInclude("helptext.h");
-    @cInclude("joystick.h");
     @cInclude("keyboard.h");
     @cInclude("loudness.h");
     @cInclude("mtrand.h");
@@ -68,15 +67,10 @@ pub fn main() u8 {
 
     c.init_video();
     c.init_keyboard();
-    c.init_joysticks();
-    std.log.debug("assuming mouse detected", .{}); // SDL can't tell us if there isn't one
+    std.log.debug("assuming mouse detected", .{});  // SDL can't tell us if there isn't one
 
     c.JE_loadPals();
     c.JE_loadMainShapeTables("tyrian.shp");
-
-    // Default Options
-    c.youAreCheating = false;
-    c.smoothScroll = true;
 
     std.log.debug("initializing SDL audio...", .{});
     _ = c.init_audio();

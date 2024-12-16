@@ -19,7 +19,6 @@
 #include "keyboard.h"
 
 #include "config.h"
-#include "joystick.h"
 #include "network.h"
 #include "opentyr.h"
 #include "video.h"
@@ -50,9 +49,6 @@ static bool mouseRelativeEnabled;
 static Sint32 mouseWindowXRelative;
 static Sint32 mouseWindowYRelative;
 
-
-
-
 void init_keyboard(void)
 {
 	//SDL_EnableKeyRepeat(500, 60); TODO Find if SDL2 has an equivalent.
@@ -76,8 +72,6 @@ void mouseSetRelative(bool enable)
 	mouseWindowXRelative = 0;
 	mouseWindowYRelative = 0;
 }
-
-
 
 void service_SDL_events(JE_boolean clear_new)
 {

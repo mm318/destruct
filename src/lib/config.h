@@ -146,7 +146,6 @@ extern MouseSettings mouseSettings;
 extern JE_boolean trentWin;
 extern JE_byte inputDevice[2];
 extern JE_byte gammaCorrection;
-extern JE_boolean youAreCheating, smoothScroll;
 extern JE_byte versionNum;
 extern JE_byte fastPlay;
 extern JE_byte gameSpeed;

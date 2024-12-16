@@ -19,7 +19,6 @@
 #include "nortsong.h"
 
 #include "file.h"
-#include "joystick.h"
 #include "keyboard.h"
 #include "loudness.h"
 #include "opentyr.h"
@@ -47,9 +46,6 @@ void setDelay(int delay)  // FKA NortSong.frameCount
 {
 	target = SDL_GetTicks() + delay * delayPeriod;
 }
-
-
-
 
 void wait_delay(void)
 {
@@ -202,6 +198,3 @@ die:
 	SDL_Quit();
 	exit(EXIT_FAILURE);
 }
-
-
-

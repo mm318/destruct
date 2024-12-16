@@ -19,7 +19,6 @@
 #include "varz.h"
 
 #include "config.h"
-#include "joystick.h"
 #include "lds_play.h"
 #include "loudness.h"
 #include "mtrand.h"
@@ -38,7 +37,6 @@ void JE_tyrianHalt(JE_byte code)
 {
 	deinit_audio();
 	deinit_video();
-	deinit_joysticks();
 
 	/* TODO: NETWORK */
 

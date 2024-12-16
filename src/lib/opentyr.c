@@ -23,7 +23,6 @@
 #include "file.h"
 #include "fonthand.h"
 #include "helptext.h"
-#include "joystick.h"
 #include "keyboard.h"
 #include "loudness.h"
 #include "mtrand.h"

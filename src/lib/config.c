@@ -19,7 +19,6 @@
 #include "config.h"
 
 #include "file.h"
-#include "joystick.h"
 #include "loudness.h"
 #include "mtrand.h"
 #include "nortsong.h"
@@ -128,9 +127,11 @@ JE_byte inputDevice[2] = { 1, 2 }; // 0:any  1:keyboard  2:mouse  3+:joystick
 
 JE_byte gammaCorrection;
 JE_boolean explosionTransparent,
-           youAreCheating,
            displayScore,
-           background2, smoothScroll, wild, superWild;
+           background2,
+           smoothScroll,
+           wild,
+           superWild;
 
 JE_byte soundEffects; // dummy value for config
 JE_byte versionNum;   /* SW 1.0 and SW/Reg 1.1 = 0 or 1

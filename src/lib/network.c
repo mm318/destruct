@@ -20,7 +20,6 @@
 
 #include "fonthand.h"
 #include "helptext.h"
-#include "joystick.h"
 #include "keyboard.h"
 #include "opentyr.h"
 #include "picload.h"
