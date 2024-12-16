@@ -18,14 +18,12 @@
  */
 #include "config.h"
 
-#include "episodes.h"
 #include "file.h"
 #include "joystick.h"
 #include "loudness.h"
 #include "mtrand.h"
 #include "nortsong.h"
 #include "opentyr.h"
-#include "player.h"
 #include "varz.h"
 #include "vga256d.h"
 #include "video.h"
@@ -111,43 +109,8 @@ const JE_EditorItemAvailType initialItemAvail =
 	0,0,0,0,0                                                                        /* Fill                     */
 };
 
-/* Last 2 bytes = Word
- *
- * Max Value = 1680
- * X div  60 = Armor  (1-28)
- * X div 168 = Shield (1-12)
- * X div 280 = Engine (1-06)
- */
-
-JE_boolean smoothies[9] = /* [1..9] */
-{ 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-
-JE_byte starShowVGASpecialCode;
-
-/* CubeData */
-JE_word lastCubeMax, cubeMax;
-JE_word cubeList[4]; /* [1..4] */
-
-/* High-Score Stuff */
-JE_boolean gameHasRepeated;  // can only get highscore on first play-through
-
 /* Difficulty */
-JE_shortint difficultyLevel, oldDifficultyLevel,
-            initialDifficulty;  // can only get highscore on initial episode
-
-/* Timed Battle */
-JE_byte timeBattleSelection;
-
-/* Player Stuff */
-uint    power, lastPower, powerAdd;
-JE_byte shieldWait, shieldT;
-
-JE_byte          shotRepeat[11], shotMultiPos[11];
-JE_boolean       portConfigChange, portConfigDone;
-
-/* Level Data */
-char    lastLevelName[11], levelName[11]; /* string [10] */
-JE_byte mainLevel, nextLevel, saveLevel;   /*Current Level #*/
+JE_shortint difficultyLevel;  // can only get highscore on initial episode
 
 /* Keyboard Junk */
 DosKeySettings dosKeySettings;
@@ -157,43 +120,23 @@ KeySettings keySettings;
 MouseSettings mouseSettings;
 
 /* Configuration */
-JE_shortint levelFilter, levelFilterNew, levelBrightness, levelBrightnessChg;
-JE_boolean  filtrationAvail, filterActive, filterFade, filterFadeStart;
+JE_boolean filtrationAvail;
 
-JE_boolean gameJustLoaded;
-
-JE_boolean galagaMode;
-
-JE_boolean extraGame;
-
-JE_boolean twoPlayerMode, twoPlayerLinked, onePlayerAction, timedBattleMode, superTyrian;
 JE_boolean trentWin = false;
-JE_byte    superArcadeMode;
 
-JE_byte    superArcadePowerUp;
-
-JE_real linkGunDirec;
 JE_byte inputDevice[2] = { 1, 2 }; // 0:any  1:keyboard  2:mouse  3+:joystick
 
-JE_byte secretHint;
-JE_byte background3over;
-JE_byte background2over;
 JE_byte gammaCorrection;
-JE_boolean superPause = false;
 JE_boolean explosionTransparent,
            youAreCheating,
            displayScore,
-           background2, smoothScroll, wild, superWild, starActive,
-           topEnemyOver,
-           skyEnemyOverAll,
-           background2notTransparent;
+           background2, smoothScroll, wild, superWild;
 
 JE_byte soundEffects; // dummy value for config
 JE_byte versionNum;   /* SW 1.0 and SW/Reg 1.1 = 0 or 1
                        * EA 1.2 = 2        T2K = 3*/
 
 JE_byte    fastPlay;
-JE_boolean pentiumMode;
 
 /* Savegame files */
 JE_byte    gameSpeed;
@@ -212,7 +155,7 @@ bool load_opentyrian_config(void)
 {
 	// defaults
 	fullscreen_display = -1;
-	set_scaler_by_name("Scale2x");
+	set_scaler_by_name("hq4x");
 	memcpy(keySettings, defaultKeySettings, sizeof(keySettings));
 	memcpy(mouseSettings, defaultMouseSettings, sizeof(mouseSettings));
 	
@@ -341,172 +284,9 @@ bool save_opentyrian_config(void)
 	return true;
 }
 
-static void playeritems_to_pitems(JE_PItemsType pItems, PlayerItems *items, JE_byte initial_episode_num)
-{
-	pItems[0]  = items->weapon[FRONT_WEAPON].id;
-	pItems[1]  = items->weapon[REAR_WEAPON].id;
-	pItems[2]  = items->super_arcade_mode;
-	pItems[3]  = items->sidekick[LEFT_SIDEKICK];
-	pItems[4]  = items->sidekick[RIGHT_SIDEKICK];
-	pItems[5]  = items->generator;
-	pItems[6]  = items->sidekick_level;
-	pItems[7]  = items->sidekick_series;
-	pItems[8]  = initial_episode_num;
-	pItems[9]  = items->shield;
-	pItems[10] = items->special;
-	pItems[11] = items->ship;
-}
 
-static void pitems_to_playeritems(PlayerItems *items, JE_PItemsType pItems, JE_byte *initial_episode_num)
-{
-	items->weapon[FRONT_WEAPON].id  = pItems[0];
-	items->weapon[REAR_WEAPON].id   = pItems[1];
-	items->super_arcade_mode        = pItems[2];
-	items->sidekick[LEFT_SIDEKICK]  = pItems[3];
-	items->sidekick[RIGHT_SIDEKICK] = pItems[4];
-	items->generator                = pItems[5];
-	items->sidekick_level           = pItems[6];
-	items->sidekick_series          = pItems[7];
-	if (initial_episode_num != NULL)
-		*initial_episode_num        = pItems[8];
-	items->shield                   = pItems[9];
-	items->special                  = pItems[10];
-	items->ship                     = pItems[11];
-}
 
-void JE_saveGame(JE_byte slot, const char *name)
-{
-	saveFiles[slot-1].initialDifficulty = initialDifficulty;
-	saveFiles[slot-1].gameHasRepeated = gameHasRepeated;
-	saveFiles[slot-1].level = saveLevel;
-	
-	if (superTyrian)
-		player[0].items.super_arcade_mode = SA_SUPERTYRIAN;
-	else if (superArcadeMode == SA_NONE && onePlayerAction)
-		player[0].items.super_arcade_mode = SA_ARCADE;
-	else
-		player[0].items.super_arcade_mode = superArcadeMode;
-	
-	playeritems_to_pitems(saveFiles[slot-1].items, &player[0].items, initial_episode_num);
-	
-	if (twoPlayerMode)
-		playeritems_to_pitems(saveFiles[slot-1].lastItems, &player[1].items, 0);
-	else
-		playeritems_to_pitems(saveFiles[slot-1].lastItems, &player[0].last_items, 0);
-	
-	saveFiles[slot-1].score  = player[0].cash;
-	saveFiles[slot-1].score2 = player[1].cash;
-	
-	memcpy(&saveFiles[slot-1].levelName, &lastLevelName, sizeof(lastLevelName));
-	saveFiles[slot-1].cubes  = lastCubeMax;
 
-	if (strcmp(lastLevelName, "Completed") == 0)
-	{
-		temp = episodeNum - 1;
-		if (temp < 1)
-		{
-			temp = EPISODE_AVAILABLE; /* JE: {Episodemax is 4 for completion purposes} */
-		}
-		saveFiles[slot-1].episode = temp;
-	}
-	else
-	{
-		saveFiles[slot-1].episode = episodeNum;
-	}
-
-	saveFiles[slot-1].difficulty = difficultyLevel;
-	saveFiles[slot-1].secretHint = secretHint;
-	saveFiles[slot-1].input1 = inputDevice[0];
-	saveFiles[slot-1].input2 = inputDevice[1];
-
-	strcpy(saveFiles[slot-1].name, name);
-	
-	for (uint port = 0; port < 2; ++port)
-	{
-		// if two-player, use first player's front and second player's rear weapon
-		saveFiles[slot-1].power[port] = player[twoPlayerMode ? port : 0].items.weapon[port].power;
-	}
-	
-	JE_saveConfiguration();
-}
-
-void JE_loadGame(JE_byte slot)
-{
-	superTyrian = false;
-	onePlayerAction = false;
-	twoPlayerMode = false;
-	extraGame = false;
-	galagaMode = false;
-	timedBattleMode = false;
-
-	initialDifficulty = saveFiles[slot-1].initialDifficulty;
-	gameHasRepeated   = saveFiles[slot-1].gameHasRepeated;
-	twoPlayerMode     = (slot-1) > 10;
-	difficultyLevel   = saveFiles[slot-1].difficulty;
-	
-	pitems_to_playeritems(&player[0].items, saveFiles[slot-1].items, &initial_episode_num);
-	
-	superArcadeMode = player[0].items.super_arcade_mode;
-	
-	if (superArcadeMode == SA_SUPERTYRIAN)
-		superTyrian = true;
-	if (superArcadeMode != SA_NONE)
-		onePlayerAction = true;
-	if (superArcadeMode > SA_LASTSHIP)
-		superArcadeMode = SA_NONE;
-	
-	if (twoPlayerMode)
-	{
-		onePlayerAction = false;
-		
-		pitems_to_playeritems(&player[1].items, saveFiles[slot-1].lastItems, NULL);
-	}
-	else
-	{
-		pitems_to_playeritems(&player[0].last_items, saveFiles[slot-1].lastItems, NULL);
-	}
-
-	/* Compatibility with old version */
-	if (player[1].items.sidekick_level < 101)
-	{
-		player[1].items.sidekick_level = 101;
-		player[1].items.sidekick_series = player[1].items.sidekick[LEFT_SIDEKICK];
-	}
-	
-	player[0].cash = saveFiles[slot-1].score;
-	player[1].cash = saveFiles[slot-1].score2;
-	
-	mainLevel   = saveFiles[slot-1].level;
-	cubeMax     = saveFiles[slot-1].cubes;
-	lastCubeMax = cubeMax;
-
-	secretHint = saveFiles[slot-1].secretHint;
-	inputDevice[0] = saveFiles[slot-1].input1;
-	inputDevice[1] = saveFiles[slot-1].input2;
-
-	for (uint port = 0; port < 2; ++port)
-	{
-		// if two-player, use first player's front and second player's rear weapon
-		player[twoPlayerMode ? port : 0].items.weapon[port].power = saveFiles[slot-1].power[port];
-	}
-	
-	int episode = saveFiles[slot-1].episode;
-
-	memcpy(&levelName, &saveFiles[slot-1].levelName, sizeof(levelName));
-
-	if (strcmp(levelName, "Completed") == 0)
-	{
-		if (episode == EPISODE_AVAILABLE)
-			episode = 1;
-		else if (episode < EPISODE_AVAILABLE)
-			episode++;
-		/* Increment episode.  Episode EPISODE_AVAILABLE goes to 1. */
-	}
-
-	JE_initEpisode(episode);
-	saveLevel = mainLevel;
-	memcpy(&lastLevelName, &levelName, sizeof(levelName));
-}
 
 void JE_initProcessorType(void)
 {
@@ -568,52 +348,6 @@ void JE_initProcessorType(void)
 
 }
 
-void JE_setNewGameSpeed(void)
-{
-	pentiumMode = false;
-
-	Uint16 speed;
-	switch (fastPlay)
-	{
-	default:
-		assert(false);
-		// fall through
-	case 0:  // Normal
-		speed = 0x4300;
-		smoothScroll = true;
-		frameCountMax = 2;
-		break;
-	case 1:  // Pentium Hyper
-		speed = 0x3000;
-		smoothScroll = true;
-		frameCountMax = 2;
-		break;
-	case 2:
-		speed = 0x2000;
-		smoothScroll = false;
-		frameCountMax = 2;
-		break;
-	case 3:  // Slug mode
-		speed = 0x5300;
-		smoothScroll = true;
-		frameCountMax = 4;
-		break;
-	case 4:  // Slower
-		speed = 0x4300;
-		smoothScroll = true;
-		frameCountMax = 3;
-		break;
-	case 5:  // Slow
-		speed = 0x4300;
-		smoothScroll = true;
-		frameCountMax = 2;
-		pentiumMode = true;
-		break;
-	}
-
-	setDelaySpeed(speed);
-	setDelay(frameCountMax);
-}
 
 void JE_encryptSaveTemp(void)
 {
@@ -1073,7 +807,7 @@ void JE_saveConfiguration(void)
 			JE_longint templi;
 			JE_byte len;
 
-			for (y = 0; y < 3; ++y)
+			for (int y = 0; y < 3; ++y)
 			{
 				templi = SDL_SwapLE32(t2kHighScores[z][y].score);
 				len = strlen(t2kHighScores[z][y].playerName);
@@ -1089,7 +823,7 @@ void JE_saveConfiguration(void)
 			JE_longint templi;
 			JE_byte len;
 
-			for (y = 0; y < 3; ++y)
+			for (int y = 0; y < 3; ++y)
 			{
 				templi = SDL_SwapLE32(t2kHighScores[z][y].score);
 				len = strlen(t2kHighScores[z][y].playerName);

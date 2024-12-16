@@ -191,18 +191,19 @@ ConfigSection *config_find_section(Config *config, const char *type, const char 
 	assert(config != NULL);
 	assert(type != NULL);
 	
-	ConfigSection *sections_end = &config->sections[config->sections_count];
-	
-	for (ConfigSection *section = &config->sections[0]; section < sections_end; ++section)
+	for (unsigned int i = 0; i < config->sections_count; ++i)
 	{
+		ConfigSection *section = &config->sections[i];
 		if (strcmp(config_string_to_cstr(&section->type), type) == 0)
 		{
 			const char *section_name = config_string_to_cstr(&section->name);
 			if ((section_name == NULL || name == NULL) ? section_name == name : strcmp(config_string_to_cstr(&section->name), name) == 0)
+			{
 				return section;
+			}
 		}
 	}
-	
+
 	return NULL;
 }
 
@@ -276,11 +277,15 @@ static ConfigOption *get_option_len(ConfigSection *section, const char *key, siz
 {
 	assert(section != NULL);
 	assert(key != NULL);
-	
-	ConfigOption *options_end = &section->options[section->options_count];
-	for (ConfigOption *option = &section->options[0]; option < options_end; ++option)
+
+	for (unsigned int i = 0; i < section->options_count; ++i)
+	{
+		ConfigOption *option = &section->options[i];
 		if (string_equal_len(&option->key, key, key_len))
+		{
 			return option;
+		}
+	}
 	
 	return NULL;
 }
@@ -304,12 +309,16 @@ ConfigOption *config_get_option(const ConfigSection *section, const char *key)
 {
 	assert(section != NULL);
 	assert(key != NULL);
-	
-	ConfigOption *options_end = &section->options[section->options_count];
-	for (ConfigOption *option = &section->options[0]; option < options_end; ++option)
+
+	for (unsigned int i = 0; i < section->options_count; ++i)
+	{
+		ConfigOption *option = &section->options[i];
 		if (strcmp(config_string_to_cstr(&option->key), key) == 0)
+		{
 			return option;
-	
+		}
+	}
+
 	return NULL;
 }
 

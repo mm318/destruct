@@ -18,13 +18,10 @@
  */
 #include "network.h"
 
-#include "episodes.h"
 #include "fonthand.h"
 #include "helptext.h"
 #include "joystick.h"
 #include "keyboard.h"
-#include "mainint.h"
-#include "nortvars.h"
 #include "opentyr.h"
 #include "picload.h"
 #include "sprite.h"
@@ -89,14 +86,6 @@ static bool connected = false, quit = false;
 #endif
 
 uint thisPlayerNum = 0;  /* Player number on this PC (1 or 2) */
-
-JE_boolean haltGame = false;
-
-JE_boolean moveOk;
-
-/* Special Requests */
-JE_boolean pauseRequest, skipLevelRequest, helpRequest, nortShipRequest;
-JE_boolean yourInGameMenuRequest, inGameMenuRequest;
 
 #ifdef WITH_NETWORK
 static void packet_copy(UDPpacket *dst, UDPpacket *src)
@@ -790,11 +779,3 @@ int network_init(void)
 
 #endif
 
-void JE_clearSpecialRequests(void)
-{
-	pauseRequest = false;
-	inGameMenuRequest = false;
-	skipLevelRequest = false;
-	helpRequest = false;
-	nortShipRequest = false;
-}

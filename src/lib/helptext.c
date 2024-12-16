@@ -19,45 +19,18 @@
 #include "helptext.h"
 
 #include "config.h"
-#include "episodes.h"
 #include "file.h"
 #include "fonthand.h"
-#include "menus.h"
 #include "opentyr.h"
 #include "video.h"
 
 #include <assert.h>
 #include <string.h>
 
-const JE_byte menuHelp[MENU_MAX][11] = /* [1..maxmenu, 1..11] */
-{
-	{  1, 34,  2,  3,  4,  5,                  0, 0, 0, 0, 0 },
-	{  6,  7,  8,  9, 10, 11, 11, 12,                0, 0, 0 },
-	{ 13, 14, 15, 15, 16, 17, 35, 12,                0, 0, 0 },
-	{                        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-	{                        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-	{                        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-	{                        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-	{                        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-	{                        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-	{  4, 30, 30,  3,  5,                   0, 0, 0, 0, 0, 0 },
-	{  4, 37, 12,                     0, 0, 0, 0, 0, 0, 0, 0 },
-	{ 16, 17, 15, 15, 12,                   0, 0, 0, 0, 0, 0 },
-	{ 31, 31, 31, 31, 32, 12,                  0, 0, 0, 0, 0 },
-	{  4, 34,  3,  5,                    0, 0, 0, 0, 0, 0, 0 },
-	{ 35, 35, 35, 36, 12,                   0, 0, 0, 0, 0, 0 }
-};
-
-JE_byte verticalHeight = 7;
-JE_byte helpBoxColor = 12;
-JE_byte helpBoxBrightness = 1;
-JE_byte helpBoxShadeType = FULL_SHADE;
-
 char helpTxt[39][231];                                                   /* [1..39] of string [230] */
 char pName[21][16];                                                      /* [1..21] of string [15] */
 char miscText[HELPTEXT_MISCTEXT_COUNT][42];                              /* [1..68] of string [41] */
 char miscTextB[HELPTEXT_MISCTEXTB_COUNT][HELPTEXT_MISCTEXTB_SIZE];       /* [1..5] of string [10] */
-char keyName[8][18];                                                     /* [1..8] of string [17] */
 char menuText[7][HELPTEXT_MENUTEXT_SIZE];                                /* [1..7] of string [20] */
 char outputs[9][31];                                                     /* [1..9] of string [30] */
 char topicName[6][21];                                                   /* [1..6] of string [20] */
@@ -125,71 +98,19 @@ void skip_pascal_string(FILE *f)
 	fread_die(buffer, 1, len, f);
 }
 
-void JE_helpBox(SDL_Surface *screen,  int x, int y, const char *message, unsigned int boxwidth)
-{
-	JE_byte startpos, endpos, pos;
-	JE_boolean endstring;
-
-	char substring[256];
-
-	if (strlen(message) == 0)
-	{
-		return;
-	}
-
-	pos = 1;
-	endpos = 0;
-	endstring = false;
-
-	do
-	{
-		startpos = endpos + 1;
-
-		do
-		{
-			endpos = pos;
-			do
-			{
-				pos++;
-				if (pos == strlen(message))
-				{
-					endstring = true;
-					if ((unsigned)(pos - startpos) < boxwidth)
-					{
-						endpos = pos + 1;
-					}
-				}
-
-			} while (!(message[pos-1] == ' ' || endstring));
-
-		} while (!((unsigned)(pos - startpos) > boxwidth || endstring));
-
-		SDL_strlcpy(substring, message + startpos - 1, MIN((size_t)(endpos - startpos + 1), sizeof(substring)));
-		JE_textShade(screen, x, y, substring, helpBoxColor, helpBoxBrightness, helpBoxShadeType);
-
-		y += verticalHeight;
-
-	} while (!endstring);
-
-	if (endpos != pos + 1)
-	{
-		JE_textShade(screen, x, y, message + endpos, helpBoxColor, helpBoxBrightness, helpBoxShadeType);
-	}
-
-	helpBoxColor = 12;
-	helpBoxShadeType = FULL_SHADE;
-}
-
-void JE_HBox(SDL_Surface *screen, int x, int y, unsigned int  messagenum, unsigned int boxwidth)
-{
-	JE_helpBox(screen, x, y, helpTxt[messagenum-1], boxwidth);
-}
+#define GAMEPLAY_NAME_COUNT 6
 
 void JE_loadHelpText(void)
 {
+	JE_longint episode1DataLoc;
+	char episode_name[6][31];
+	char difficulty_name[7][21];
+	char gameplay_name[GAMEPLAY_NAME_COUNT][26];
+	char timed_battle_name[4][23];
+
 	const unsigned int menuInt_entries[MENU_MAX + 1] = { -1, 7, 9, 9, -1, -1, 11, -1, -1, -1, 6, 4, 7, 7, 5, 6 };
 	const unsigned int setup_entries[10] = {10, 5, 4, 4, 5, 7, 7, 21, 3, 3};
-	
+
 	FILE *f = dir_fopen_die(data_dir(), "tyrian.hdt", "rb");
 	fread_s32_die(&episode1DataLoc, 1, f);
 

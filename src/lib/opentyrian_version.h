@@ -2,7 +2,7 @@
 #define OPENTYRIAN_VERSION_H
 
 #ifndef OPENTYRIAN_VERSION
-#define OPENTYRIAN_VERSION "v2.1.???"
+#define OPENTYRIAN_VERSION "destruct v0.0.1"
 #endif
 
 #endif // OPENTYRIAN_VERSION_H
