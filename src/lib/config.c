@@ -474,14 +474,7 @@ void JE_decryptSaveTemp(void)
 
 const char *get_user_directory(void)
 {
-	static char user_dir[500] = "";
-	
-	if (strlen(user_dir) == 0)
-	{
-		strcpy(user_dir, ".");
-	}
-	
-	return user_dir;
+	return ".";
 }
 
 // for compatibility

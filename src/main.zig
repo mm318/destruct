@@ -33,11 +33,8 @@ pub fn main() u8 {
     defer allocator.free(arg0);
     const arg1 = std.fmt.allocPrintZ(allocator, "--data={s}", .{exe_dir}) catch @panic("oom");
     defer allocator.free(arg1);
-    // std.log.debug("arg: {s}", .{arg});
 
-    // const argv = std.os.argv;
-    // const c_ptr: [*c][*c]u8 = @ptrCast(argv.ptr);
-    const c_ptr: [*c][*c]u8 = @constCast(@ptrCast(&.{ arg0.ptr, arg1.ptr }));
+    const args_ptr: [*c][*c]u8 = @constCast(@ptrCast(&.{ arg0.ptr, arg1.ptr }));
 
     c.mt_srand(@intCast(c.time(0)));
 
@@ -59,7 +56,7 @@ pub fn main() u8 {
     // Tyrian 2000 requires help text to be loaded before the configuration,
     // because the default high score names are stored in help text
 
-    c.JE_paramCheck(2, c_ptr);
+    c.JE_paramCheck(2, args_ptr);
 
     c.JE_loadHelpText();
 
@@ -75,7 +72,7 @@ pub fn main() u8 {
     std.log.debug("initializing SDL audio...", .{});
     _ = c.init_audio();
     c.load_music();
-    c.loadSndFile(false);
+    c.loadSndFile(false);   // xmas = false
 
     c.JE_destructGame();
 

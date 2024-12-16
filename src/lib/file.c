@@ -33,37 +33,7 @@ const char *custom_data_dir = NULL;
 // finds the Tyrian data directory
 const char *data_dir(void)
 {
-	const char *const dirs[] =
-	{
-		custom_data_dir,
-		"data",
-		".",
-	};
-
-	static const char *dir = NULL;
-
-	if (dir != NULL)
-		return dir;
-
-	for (uint i = 0; i < COUNTOF(dirs); ++i)
-	{
-		if (dirs[i] == NULL)
-			continue;
-
-		FILE *f = dir_fopen(dirs[i], "tyrian1.lvl", "rb");
-		if (f)
-		{
-			fclose(f);
-
-			dir = dirs[i];
-			break;
-		}
-	}
-
-	if (dir == NULL) // data not found
-		dir = "";
-
-	return dir;
+	return (custom_data_dir == NULL) ? "." : custom_data_dir;
 }
 
 // prepend directory and fopen
