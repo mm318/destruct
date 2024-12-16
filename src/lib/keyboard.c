@@ -53,44 +53,8 @@ static bool mouseRelativeEnabled;
 static Sint32 mouseWindowXRelative;
 static Sint32 mouseWindowYRelative;
 
-void flush_events_buffer(void)
-{
-	SDL_Event ev;
 
-	while (SDL_PollEvent(&ev));
-}
 
-void wait_input(JE_boolean keyboard, JE_boolean mouse, JE_boolean joystick)
-{
-	service_SDL_events(false);
-	while (!((keyboard && keydown) || (mouse && mousedown) || (joystick && joydown)))
-	{
-		SDL_Delay(SDL_POLL_INTERVAL);
-		push_joysticks_as_keyboard();
-		service_SDL_events(false);
-
-#ifdef WITH_NETWORK
-		if (isNetworkGame)
-			network_check();
-#endif
-	}
-}
-
-void wait_noinput(JE_boolean keyboard, JE_boolean mouse, JE_boolean joystick)
-{
-	service_SDL_events(false);
-	while ((keyboard && keydown) || (mouse && mousedown) || (joystick && joydown))
-	{
-		SDL_Delay(SDL_POLL_INTERVAL);
-		poll_joysticks();
-		service_SDL_events(false);
-
-#ifdef WITH_NETWORK
-		if (isNetworkGame)
-			network_check();
-#endif
-	}
-}
 
 void init_keyboard(void)
 {
@@ -116,25 +80,7 @@ void mouseSetRelative(bool enable)
 	mouseWindowYRelative = 0;
 }
 
-JE_word JE_mousePosition(JE_word *mouseX, JE_word *mouseY)
-{
-	service_SDL_events(false);
-	*mouseX = mouse_x;
-	*mouseY = mouse_y;
-	return mousedown ? lastmouse_but : 0;
-}
 
-void mouseGetRelativePosition(Sint32 *const out_x, Sint32 *const out_y)
-{
-	service_SDL_events(false);
-
-	scaleWindowDistanceToScreen(&mouseWindowXRelative, &mouseWindowYRelative);
-	*out_x = mouseWindowXRelative;
-	*out_y = mouseWindowYRelative;
-
-	mouseWindowXRelative = 0;
-	mouseWindowYRelative = 0;
-}
 
 void service_SDL_events(JE_boolean clear_new)
 {
@@ -280,7 +226,3 @@ void service_SDL_events(JE_boolean clear_new)
 	}
 }
 
-void JE_clearKeyboard(void)
-{
-	// /!\ Doesn't seems important. I think. D:
-}

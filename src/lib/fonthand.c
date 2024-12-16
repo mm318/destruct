@@ -62,38 +62,6 @@ JE_word armorShipDelay;
 JE_byte warningCol;
 JE_shortint warningColChange;
 
-void JE_dString(SDL_Surface * screen, int x, int y, const char *s, unsigned int font)
-{
-	const int defaultBrightness = -3;
-
-	int bright = 0;
-
-	for (int i = 0; s[i] != '\0'; ++i)
-	{
-		int sprite_id = font_ascii[(unsigned char)s[i]];
-
-		switch (s[i])
-		{
-		case ' ':
-			x += 6;
-			break;
-
-		case '~':
-			bright = (bright == 0) ? 2 : 0;
-			break;
-
-		default:
-			if (sprite_id != -1)
-			{
-				blit_sprite_dark(screen, x + 2, y + 2, font, sprite_id, false);
-				blit_sprite_hv_unsafe(screen, x, y, font, sprite_id, 0xf, defaultBrightness + bright);
-
-				x += sprite(font, sprite_id)->width + 1;
-			}
-			break;
-		}
-	}
-}
 
 int JE_fontCenter(const char *s, unsigned int font)
 {
@@ -193,37 +161,6 @@ void JE_outTextModify(SDL_Surface * screen, int x, int y, const char *s, unsigne
 	}
 }
 
-void JE_outTextAdjust(SDL_Surface * screen, int x, int y, const char *s, unsigned int filter, int brightness, unsigned int font, JE_boolean shadow)
-{
-	int bright = 0;
-
-	for (int i = 0; s[i] != '\0'; ++i)
-	{
-		int sprite_id = font_ascii[(unsigned char)s[i]];
-
-		switch (s[i])
-		{
-		case ' ':
-			x += 6;
-			break;
-
-		case '~':
-			bright = (bright == 0) ? 4 : 0;
-			break;
-
-		default:
-			if (sprite_id != -1 && sprite_exists(TINY_FONT, sprite_id))
-			{
-				if (shadow)
-					blit_sprite_dark(screen, x + 2, y + 2, font, sprite_id, false);
-				blit_sprite_hv(screen, x, y, font, sprite_id, filter, brightness + bright);
-
-				x += sprite(font, sprite_id)->width + 1;
-			}
-			break;
-		}
-	}
-}
 
 void JE_outTextAndDarken(SDL_Surface * screen, int x, int y, const char *s, unsigned int colorbank, unsigned int brightness, unsigned int font)
 {
@@ -256,78 +193,4 @@ void JE_outTextAndDarken(SDL_Surface * screen, int x, int y, const char *s, unsi
 	}
 }
 
-void JE_updateWarning(SDL_Surface * screen)
-{
-	if (getDelayTicks2() == 0)
-	{ /*Update Color Bars*/
 
-		warningCol += warningColChange;
-		if (warningCol > 14 * 16 + 10 || warningCol < 14 * 16 + 4)
-		{
-			warningColChange = -warningColChange;
-		}
-		fill_rectangle_xy(screen, 0, 0, 319, 5, warningCol);
-		fill_rectangle_xy(screen, 0, 194, 319, 199, warningCol);
-		JE_showVGA();
-
-		setDelay2(6);
-
-		if (warningSoundDelay > 0)
-		{
-			warningSoundDelay--;
-		}
-		else
-		{
-			warningSoundDelay = 14;
-			JE_playSampleNum(S_WARNING);
-		}
-	}
-}
-
-void JE_outTextGlow(SDL_Surface * screen, int x, int y, const char *s)
-{
-	JE_integer z;
-	JE_byte c = 15;
-
-	if (warningRed)
-	{
-		c = 7;
-	}
-
-	JE_outTextAdjust(screen, x - 1, y,     s, 0, -12, textGlowFont, false);
-	JE_outTextAdjust(screen, x,     y - 1, s, 0, -12, textGlowFont, false);
-	JE_outTextAdjust(screen, x + 1, y,     s, 0, -12, textGlowFont, false);
-	JE_outTextAdjust(screen, x,     y + 1, s, 0, -12, textGlowFont, false);
-	if (frameCountMax > 0)
-		for (z = 1; z <= 12; z++)
-		{
-			setDelay(frameCountMax);
-			JE_outTextAdjust(screen, x, y, s, c, z - 10, textGlowFont, false);
-			if (JE_anyButton())
-			{
-				frameCountMax = 0;
-			}
-
-			NETWORK_KEEP_ALIVE();
-
-			JE_showVGA();
-
-			wait_delay();
-		}
-	for (z = (frameCountMax == 0) ? 6 : 12; z >= textGlowBrightness; z--)
-	{
-		setDelay(frameCountMax);
-		JE_outTextAdjust(screen, x, y, s, c, z - 10, textGlowFont, false);
-		if (JE_anyButton())
-		{
-			frameCountMax = 0;
-		}
-
-		NETWORK_KEEP_ALIVE();
-
-		JE_showVGA();
-
-		wait_delay();
-	}
-	textGlowBrightness = 6;
-}

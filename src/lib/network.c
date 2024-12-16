@@ -790,11 +790,3 @@ int network_init(void)
 
 #endif
 
-void JE_clearSpecialRequests(void)
-{
-	pauseRequest = false;
-	inGameMenuRequest = false;
-	skipLevelRequest = false;
-	helpRequest = false;
-	nortShipRequest = false;
-}

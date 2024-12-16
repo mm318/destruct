@@ -297,43 +297,8 @@ void play_song(unsigned int song_num)  // FKA NortSong.playSong
 	SDL_UnlockAudioDevice(audioDevice);
 }
 
-void restart_song(void)  // FKA Player.selectSong(1)
-{
-	if (audio_disabled)
-		return;
 
-	SDL_LockAudioDevice(audioDevice);
 
-	lds_rewind();
-
-	music_stopped = false;
-
-	SDL_UnlockAudioDevice(audioDevice);
-}
-
-void stop_song(void)  // FKA Player.selectSong(0)
-{
-	if (audio_disabled)
-		return;
-
-	SDL_LockAudioDevice(audioDevice);
-
-	music_stopped = true;
-
-	SDL_UnlockAudioDevice(audioDevice);
-}
-
-void fade_song(void)  // FKA Player.selectSong($C001)
-{
-	if (audio_disabled)
-		return;
-
-	SDL_LockAudioDevice(audioDevice);
-
-	lds_fade(1);
-
-	SDL_UnlockAudioDevice(audioDevice);
-}
 
 void set_volume(Uint8 musicVolume_, Uint8 sampleVolume_)  // FKA NortSong.setVol and Player.setVol
 {

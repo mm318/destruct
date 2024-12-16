@@ -53,22 +53,8 @@ void setDelay(int delay)  // FKA NortSong.frameCount
 	target = SDL_GetTicks() + delay * delayPeriod;
 }
 
-void setDelay2(int delay)  // FKA NortSong.frameCount2
-{
-	target2 = SDL_GetTicks() + delay * delayPeriod;
-}
 
-Uint32 getDelayTicks(void)  // FKA NortSong.frameCount
-{
-	Sint32 delay = target - SDL_GetTicks();
-	return MAX(0, delay);
-}
 
-Uint32 getDelayTicks2(void)  // FKA NortSong.frameCount2
-{
-	Sint32 delay = target2 - SDL_GetTicks();
-	return MAX(0, delay);
-}
 
 void wait_delay(void)
 {
@@ -91,26 +77,6 @@ void service_wait_delay(void)
 	}
 }
 
-void wait_delayorinput(void)
-{
-	for (; ; )
-	{
-		service_SDL_events(false);
-		poll_joysticks();
-
-		if (newkey || mousedown || joydown)
-		{
-			newkey = false;
-			return;
-		}
-
-		Sint32 delay = target - SDL_GetTicks();
-		if (delay <= 0)
-			return;
-
-		SDL_Delay(MIN(delay, SDL_POLL_INTERVAL));
-	}
-}
 
 void loadSndFile(bool xmas)
 {
@@ -242,52 +208,5 @@ die:
 	exit(EXIT_FAILURE);
 }
 
-void JE_playSampleNum(JE_byte samplenum)
-{
-	multiSamplePlay(soundSamples[samplenum-1], soundSampleCount[samplenum-1], 0, fxPlayVol);
-}
 
-void setDelaySpeed(Uint16 speed)  // FKA NortSong.speed and NortSong.setTimerInt
-{
-	delaySpeed = speed;
-	delayPeriod = speed * pitPeriod;
-}
 
-void JE_changeVolume(JE_word *music, int music_delta, JE_word *sample, int sample_delta)
-{
-	int music_temp = *music + music_delta,
-	    sample_temp = *sample + sample_delta;
-	
-	if (music_delta)
-	{
-		if (music_temp > 255)
-		{
-			music_temp = 255;
-			JE_playSampleNum(S_CLINK);
-		}
-		else if (music_temp < 0)
-		{
-			music_temp = 0;
-			JE_playSampleNum(S_CLINK);
-		}
-	}
-	
-	if (sample_delta)
-	{
-		if (sample_temp > 255)
-		{
-			sample_temp = 255;
-			JE_playSampleNum(S_CLINK);
-		}
-		else if (sample_temp < 0)
-		{
-			sample_temp = 0;
-			JE_playSampleNum(S_CLINK);
-		}
-	}
-	
-	*music = music_temp;
-	*sample = sample_temp;
-	
-	set_volume(*music, *sample);
-}

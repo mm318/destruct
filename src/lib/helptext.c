@@ -125,65 +125,7 @@ void skip_pascal_string(FILE *f)
 	fread_die(buffer, 1, len, f);
 }
 
-void JE_helpBox(SDL_Surface *screen,  int x, int y, const char *message, unsigned int boxwidth)
-{
-	JE_byte startpos, endpos, pos;
-	JE_boolean endstring;
 
-	char substring[256];
-
-	if (strlen(message) == 0)
-	{
-		return;
-	}
-
-	pos = 1;
-	endpos = 0;
-	endstring = false;
-
-	do
-	{
-		startpos = endpos + 1;
-
-		do
-		{
-			endpos = pos;
-			do
-			{
-				pos++;
-				if (pos == strlen(message))
-				{
-					endstring = true;
-					if ((unsigned)(pos - startpos) < boxwidth)
-					{
-						endpos = pos + 1;
-					}
-				}
-
-			} while (!(message[pos-1] == ' ' || endstring));
-
-		} while (!((unsigned)(pos - startpos) > boxwidth || endstring));
-
-		SDL_strlcpy(substring, message + startpos - 1, MIN((size_t)(endpos - startpos + 1), sizeof(substring)));
-		JE_textShade(screen, x, y, substring, helpBoxColor, helpBoxBrightness, helpBoxShadeType);
-
-		y += verticalHeight;
-
-	} while (!endstring);
-
-	if (endpos != pos + 1)
-	{
-		JE_textShade(screen, x, y, message + endpos, helpBoxColor, helpBoxBrightness, helpBoxShadeType);
-	}
-
-	helpBoxColor = 12;
-	helpBoxShadeType = FULL_SHADE;
-}
-
-void JE_HBox(SDL_Surface *screen, int x, int y, unsigned int  messagenum, unsigned int boxwidth)
-{
-	JE_helpBox(screen, x, y, helpTxt[messagenum-1], boxwidth);
-}
 
 void JE_loadHelpText(void)
 {
