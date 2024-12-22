@@ -48,7 +48,6 @@
 #include "destruct.h"
 
 #include "config.h"
-#include "config_file.h"
 #include "fonthand.h"
 #include "helptext.h"
 #include "keyboard.h"
@@ -67,93 +66,8 @@
 
 /*** Defines ***/
 #define UNIT_HEIGHT 12
-#define MAX_KEY_OPTIONS 2
 
 /*** Enums ***/
-enum de_state_t
-{
-    STATE_INIT,
-    STATE_RELOAD,
-    STATE_CONTINUE
-};
-
-enum de_player_t
-{
-    PLAYER_LEFT = 0,
-    PLAYER_RIGHT = 1,
-    MAX_PLAYERS = 2
-};
-
-enum de_team_t
-{
-    TEAM_LEFT = 0,
-    TEAM_RIGHT = 1,
-    MAX_TEAMS = 2
-};
-
-enum de_mode_t
-{
-    MODE_5CARDWAR = 0,
-    MODE_TRADITIONAL,
-    MODE_HELIASSAULT,
-    MODE_HELIDEFENSE,
-    MODE_OUTGUNNED,
-    MODE_CUSTOM,
-    MODE_FIRST = MODE_5CARDWAR,
-    MODE_LAST = MODE_CUSTOM,
-    MAX_MODES = 6,
-    MODE_NONE = -1
-};
-
-enum de_unit_t
-{
-    UNIT_TANK = 0,
-    UNIT_NUKE,
-    UNIT_DIRT,
-    UNIT_SATELLITE,
-    UNIT_MAGNET,
-    UNIT_LASER,
-    UNIT_JUMPER,
-    UNIT_HELI,
-    UNIT_FIRST = UNIT_TANK,
-    UNIT_LAST = UNIT_HELI,
-    MAX_UNITS = 8,
-    UNIT_NONE = -1
-};
-
-enum de_shot_t
-{
-    SHOT_TRACER = 0,
-    SHOT_SMALL,
-    SHOT_LARGE,
-    SHOT_MICRO,
-    SHOT_SUPER,
-    SHOT_DEMO,
-    SHOT_SMALLNUKE,
-    SHOT_LARGENUKE,
-    SHOT_SMALLDIRT,
-    SHOT_LARGEDIRT,
-    SHOT_MAGNET,
-    SHOT_MINILASER,
-    SHOT_MEGALASER,
-    SHOT_LASERTRACER,
-    SHOT_MEGABLAST,
-    SHOT_MINI,
-    SHOT_BOMB,
-    SHOT_FIRST = SHOT_TRACER,
-    SHOT_LAST = SHOT_BOMB,
-    MAX_SHOT_TYPES = 17,
-    SHOT_INVALID = -1
-};
-
-enum de_expl_t
-{
-    EXPL_NONE,
-    EXPL_MAGNET,
-    EXPL_DIRT,
-    EXPL_NORMAL
-}; /* this needs a better name */
-
 enum de_trails_t
 {
     TRAILS_NONE,
@@ -177,216 +91,114 @@ enum de_mapflags_t
     MAP_TALL = 0x10
 };
 
-/* keys and moves should line up. */
-enum de_keys_t
-{
-    KEY_LEFT = 0,
-    KEY_RIGHT,
-    KEY_UP,
-    KEY_DOWN,
-    KEY_CHANGE,
-    KEY_FIRE,
-    KEY_CYUP,
-    KEY_CYDN,
-    MAX_KEY = 8
-};
-
-enum de_move_t
-{
-    MOVE_LEFT = 0,
-    MOVE_RIGHT,
-    MOVE_UP,
-    MOVE_DOWN,
-    MOVE_CHANGE,
-    MOVE_FIRE,
-    MOVE_CYUP,
-    MOVE_CYDN,
-    MAX_MOVE = 8
-};
-
 /* The tracerlaser is dummied out.  It works but (probably due to the low
  * MAX_SHOTS) is not assigned to anything.  The bomb does not work.
  */
 
-/*** Structs ***/
-struct destruct_config_s
-{
-    unsigned int max_shots;
-    unsigned int min_walls;
-    unsigned int max_walls;
-    unsigned int max_explosions;
-    unsigned int max_installations;
-    bool allow_custom;
-    bool alwaysalias;
-    bool jumper_straight[2];
-    bool ai[2];
-};
-
-struct destruct_unit_s
-{
-    /* Positioning/movement */
-    unsigned int unitX; /* yep, one's an int and the other is a real */
-    float        unitY;
-    float        unitYMov;
-    bool         isYInAir;
-
-    /* What it is and what it fires */
-    enum de_unit_t unitType;
-    enum de_shot_t shotType;
-
-    /* What it's pointed */
-    float angle;
-    float power;
-
-    /* Misc */
-    int lastMove;
-    unsigned int ani_frame;
-    int health;
-};
-
-struct destruct_shot_s
-{
-    bool isAvailable;
-
-    float x;
-    float y;
-    float xmov;
-    float ymov;
-    bool gravity;
-    unsigned int shottype;
-    //int shotdur; /* This looks to be unused */
-    unsigned int trailx[4], traily[4], trailc[4];
-};
-
-struct destruct_explo_s
-{
-    bool isAvailable;
-
-    unsigned int x, y;
-    unsigned int explowidth;
-    unsigned int explomax;
-    unsigned int explofill;
-    enum de_expl_t exploType;
-};
-
-struct destruct_moves_s
-{
-    bool actions[MAX_MOVE];
-};
-
-struct destruct_keys_s
-{
-    SDL_Scancode Config[MAX_KEY][MAX_KEY_OPTIONS];
-};
-
-struct destruct_ai_s
-{
-    int c_Angle, c_Power, c_Fire;
-    unsigned int c_noDown;
-};
-
-struct destruct_player_s
-{
-    bool is_cpu;
-    struct destruct_ai_s aiMemory;
-
-    struct destruct_unit_s * unit;
-    struct destruct_moves_s moves;
-    struct destruct_keys_s  keys;
-
-    enum de_team_t team;
-    unsigned int unitsRemaining;
-    unsigned int unitSelected;
-    unsigned int shotDelay;
-    unsigned int score;
-};
-
-struct destruct_wall_s
-{
-    bool wallExist;
-    unsigned int wallX, wallY;
-};
-
-struct destruct_world_s
-{
-    /* Map data & screen pointer */
-    unsigned int baseMap[320];
-    SDL_Surface * VGAScreen;
-    struct destruct_wall_s * mapWalls;
-
-    /* Map configuration */
-    enum de_mode_t destructMode;
-    unsigned int mapFlags;
-};
-
 /*** Function decs ***/
-//Prep functions
-static void JE_destructMain(void);
-static void JE_introScreen(void);
-static enum de_mode_t JE_modeSelect(void);
+// Prep functions
 static void JE_helpScreen(void);
 static void JE_pauseScreen(void);
 
-//level generating functions
-static void JE_generateTerrain(void);
+// level generating functions
+static void JE_generateTerrain(const struct destruct_config_s * config,
+                               struct destruct_player_s * destruct_player,
+                               struct destruct_world_s * world,
+                               SDL_Surface * destructTempScreen);
 static void DE_generateBaseTerrain(unsigned int, unsigned int *);
 static void DE_drawBaseTerrain(unsigned int *);
-static void DE_generateUnits(unsigned int *);
-static void DE_generateWalls(struct destruct_world_s *);
+static void DE_generateUnits(struct destruct_player_s * destruct_player, struct destruct_world_s * world);
+static void DE_generateWalls(const struct destruct_config_s * config,
+                             const struct destruct_player_s * destruct_player,
+                             struct destruct_world_s *);
 static void DE_generateRings(SDL_Surface *, Uint8);
-static void DE_ResetLevel(void);
 static unsigned int JE_placementPosition(unsigned int, unsigned int, unsigned int *);
 
-//drawing functions
+// drawing functions
 static void JE_aliasDirt(SDL_Surface *);
-static void DE_RunTickDrawCrosshairs(void);
-static void DE_RunTickDrawHUD(void);
+static void DE_RunTickDrawCrosshairs(struct destruct_player_s * destruct_player);
+static void DE_RunTickDrawHUD(struct destruct_player_s * destruct_player);
 static void DE_GravityDrawUnit(enum de_player_t, struct destruct_unit_s *);
-static void DE_RunTickAnimate(void);
-static void DE_RunTickDrawWalls(void);
+static void DE_RunTickAnimate(const struct destruct_config_s * config, struct destruct_player_s * destruct_player);
+static void DE_RunTickDrawWalls(const struct destruct_config_s * config, const struct destruct_world_s * world);
 static void DE_DrawTrails(struct destruct_shot_s *, unsigned int, unsigned int, unsigned int);
-static void JE_tempScreenChecking(void);
-static void JE_superPixel(unsigned int, unsigned int);
+static void JE_tempScreenChecking(const struct destruct_config_s * config, const SDL_Surface * destructTempScreen);
+static void JE_superPixel(const SDL_Surface * destructTempScreen, unsigned int, unsigned int);
 static void JE_pixCool(unsigned int, unsigned int, Uint8);
 
-//player functions
-static void DE_RunTickGetInput(void);
-static void DE_ProcessInput(void);
-static void DE_ResetPlayers(void);
-static void DE_ResetAI(void);
-static void DE_ResetActions(void);
-static void DE_RunTickAI(void);
+// player functions
+static void DE_RunTickGetInput(struct destruct_player_s * destruct_player);
+static void DE_ProcessInput(const struct destruct_config_s * config,
+                            struct destruct_player_s * destruct_player,
+                            struct destruct_shot_s * shotRec,
+                            const SDL_Surface * destructTempScreen);
+static void DE_ResetAI(const struct destruct_config_s * config,
+                       struct destruct_player_s * destruct_player,
+                       const struct destruct_world_s * world);
+static void DE_ResetActions(struct destruct_player_s * destruct_player);
+static void DE_RunTickAI(const struct destruct_config_s * config, struct destruct_player_s * destruct_player);
 
-//unit functions
+// unit functions
 static void DE_RaiseAngle(struct destruct_unit_s *);
 static void DE_LowerAngle(struct destruct_unit_s *);
 static void DE_RaisePower(struct destruct_unit_s *);
 static void DE_LowerPower(struct destruct_unit_s *);
 static void DE_CycleWeaponUp(struct destruct_unit_s *);
 static void DE_CycleWeaponDown(struct destruct_unit_s *);
-static void DE_RunMagnet(enum de_player_t, struct destruct_unit_s *);
-static void DE_GravityFlyUnit(struct destruct_unit_s *);
-static void DE_GravityLowerUnit(struct destruct_unit_s *);
-static void DE_DestroyUnit(enum de_player_t, struct destruct_unit_s *);
-static void DE_ResetUnits(void);
+static void DE_RunMagnet(const struct destruct_config_s * config,
+                         struct destruct_player_s * destruct_player,
+                         struct destruct_shot_s * shotRec,
+                         enum de_player_t curPlayer,
+                         struct destruct_unit_s * magnet);
+static void DE_GravityFlyUnit(const SDL_Surface * destructTempScreen, struct destruct_unit_s *);
+static void DE_GravityLowerUnit(const SDL_Surface * destructTempScreen, struct destruct_unit_s *);
+static void DE_DestroyUnit(const struct destruct_config_s * config,
+                           struct destruct_player_s * destruct_player,
+                           struct destruct_explo_s * exploRec,
+                           enum de_player_t playerID,
+                           struct destruct_unit_s * unit);
 static inline bool DE_isValidUnit(struct destruct_unit_s *);
 
-//weapon functions
-static void DE_ResetWeapons(void);
-static void DE_RunTickShots(void);
-static void DE_RunTickExplosions(void);
-static void DE_TestExplosionCollision(unsigned int, unsigned int);
-static void JE_makeExplosion(unsigned int, unsigned int, enum de_shot_t);
-static void DE_MakeShot(enum de_player_t, const struct destruct_unit_s *, int);
+// weapon functions
+static void DE_ResetWeapons(const struct destruct_config_s * config,
+                            struct destruct_shot_s * shotRec,
+                            struct destruct_explo_s * exploRec);
+static void DE_RunTickShots(const struct destruct_config_s * config,
+                            struct destruct_player_s * destruct_player,
+                            struct destruct_shot_s * shotRec,
+                            struct destruct_explo_s * exploRec,
+                            struct destruct_world_s * world,
+                            SDL_Surface * destructTempScreen);
+static void DE_RunTickExplosions(const struct destruct_config_s * config,
+                                 struct destruct_player_s * destruct_player,
+                                 struct destruct_explo_s * exploRec,
+                                 const SDL_Surface * destructTempScreen);
+static void DE_TestExplosionCollision(const struct destruct_config_s * config,
+                                      struct destruct_player_s * destruct_player,
+                                      struct destruct_explo_s * exploRec,
+                                      unsigned int,
+                                      unsigned int);
+static void JE_makeExplosion(const struct destruct_config_s * config,
+                             struct destruct_explo_s * exploRec,
+                             unsigned int tempPosX,
+                             unsigned int tempPosY,
+                             enum de_shot_t shottype);
+static void DE_MakeShot(const struct destruct_config_s * config,
+                        struct destruct_player_s * destruct_player,
+                        struct destruct_shot_s * shotRec,
+                        enum de_player_t curPlayer,
+                        const struct destruct_unit_s * curUnit,
+                        int direction);
 
-//gameplay functions
-static enum de_state_t DE_RunTick(void);
-static void DE_RunTickCycleDeadUnits(void);
-static void DE_RunTickGravity(void);
-static bool DE_RunTickCheckEndgame(void);
-static bool JE_stabilityCheck(unsigned int, unsigned int);
+// gameplay functions
+static void DE_RunTickCycleDeadUnits(const struct destruct_config_s * config, struct destruct_player_s * destruct_player);
+static void DE_RunTickGravity(const struct destruct_config_s * config,
+                              struct destruct_player_s * destruct_player,
+                              const SDL_Surface * destructTempScreen);
+static bool DE_RunTickCheckEndgame(struct destruct_player_s * destruct_player, struct destruct_world_s * world);
+static bool JE_stabilityCheck(const SDL_Surface * destructTempScreen, unsigned int, unsigned int);
 
-//sound
+// sound
 static void DE_RunTickPlaySounds(void);
 static void JE_eSound(unsigned int);
 
@@ -429,7 +241,7 @@ static bool weaponSystems[MAX_UNITS][MAX_SHOT_TYPES] =
 static const JE_byte goodsel[14] /*[1..14]*/ = {1, 2, 6, 12, 13, 14, 17, 23, 24, 26, 28, 29, 32, 33};
 
 /* Unit creation.  Need to move this later: Doesn't belong here */
-static JE_byte basetypes[10][11] /*[1..8, 1..11]*/ = /* [0] is amount of units*/
+JE_byte basetypes[10][11] /*[1..8, 1..11]*/ = /* [0] is amount of units*/
 {
     {5, UNIT_TANK, UNIT_TANK, UNIT_NUKE, UNIT_DIRT,      UNIT_DIRT,   UNIT_SATELLITE, UNIT_MAGNET, UNIT_LASER,  UNIT_JUMPER, UNIT_HELI},   /*Normal*/
     {1, UNIT_TANK, UNIT_TANK, UNIT_TANK, UNIT_TANK,      UNIT_TANK,   UNIT_TANK,      UNIT_TANK,   UNIT_TANK,   UNIT_TANK,   UNIT_TANK},   /*Traditional*/
@@ -442,6 +254,7 @@ static JE_byte basetypes[10][11] /*[1..8, 1..11]*/ = /* [0] is amount of units*/
     {5, UNIT_TANK, UNIT_TANK, UNIT_NUKE, UNIT_DIRT,      UNIT_DIRT,   UNIT_SATELLITE, UNIT_MAGNET, UNIT_LASER,  UNIT_JUMPER, UNIT_HELI},   /*Left custom*/
     {5, UNIT_TANK, UNIT_TANK, UNIT_NUKE, UNIT_DIRT,      UNIT_DIRT,   UNIT_SATELLITE, UNIT_MAGNET, UNIT_LASER,  UNIT_JUMPER, UNIT_HELI},   /*Right custom*/
 };
+
 static const unsigned int baseLookup[MAX_PLAYERS][MAX_MODES] =
 {
     {0, 1, 3, 4, 6, 8},
@@ -485,14 +298,7 @@ static SDL_Scancode defaultKeyConfig[MAX_PLAYERS][MAX_KEY][MAX_KEY_OPTIONS] =
 };
 
 /*** Globals ***/
-static SDL_Surface *destructTempScreen;
-static JE_boolean destructFirstTime;
-
-static struct destruct_config_s config = { 40, 20, 20, 40, 10, false, false, {true, false}, {true, false} };
-static struct destruct_player_s destruct_player[MAX_PLAYERS];
-static struct destruct_world_s  world;
-static struct destruct_shot_s   * shotRec;
-static struct destruct_explo_s  * exploRec;
+JE_boolean destructFirstTime;
 
 static const char *const player_names[] =
 {
@@ -533,7 +339,7 @@ static enum de_unit_t get_unit_by_name(const char *unit_name)
     return UNIT_NONE;
 }
 
-static void load_destruct_config(Config *config_)
+void load_destruct_config(Config *config_, struct destruct_config_s * config)
 {
     ConfigSection *section;
 
@@ -541,19 +347,19 @@ static void load_destruct_config(Config *config_)
     if (section == NULL)
         exit(EXIT_FAILURE);  // out of memory
 
-    config.alwaysalias = config_get_or_set_bool_option(section, "antialias craters", false, NO_YES);
+    config->alwaysalias = config_get_or_set_bool_option(section, "antialias craters", false, NO_YES);
 
     weaponSystems[UNIT_LASER][SHOT_LASERTRACER] = config_get_or_set_bool_option(section, "tracer laser", false, OFF_ON);
 
-    config.max_shots = config_get_or_set_int_option(section, "max shots", 40);
-    config.max_explosions = config_get_or_set_int_option(section, "max explosions", 40);
-    config.min_walls = config_get_or_set_int_option(section, "min walls", 20);
-    config.max_walls = config_get_or_set_int_option(section, "max walls", 20);
+    config->max_shots = config_get_or_set_int_option(section, "max shots", 40);
+    config->max_explosions = config_get_or_set_int_option(section, "max explosions", 40);
+    config->min_walls = config_get_or_set_int_option(section, "min walls", 20);
+    config->max_walls = config_get_or_set_int_option(section, "max walls", 20);
 
-    config.ai[0] = config_get_or_set_bool_option(section, "left ai", true, NO_YES);
-    config.jumper_straight[0] = config_get_or_set_bool_option(section, "left jumper fires straight", true, NO_YES);
-    config.ai[1] = config_get_or_set_bool_option(section, "right ai", false, NO_YES);
-    config.jumper_straight[1] = config_get_or_set_bool_option(section, "right jumper fires straight", false, NO_YES);
+    config->ai[0] = config_get_or_set_bool_option(section, "left ai", true, NO_YES);
+    config->jumper_straight[0] = config_get_or_set_bool_option(section, "left jumper fires straight", true, NO_YES);
+    config->ai[1] = config_get_or_set_bool_option(section, "right ai", false, NO_YES);
+    config->jumper_straight[1] = config_get_or_set_bool_option(section, "right jumper fires straight", false, NO_YES);
 
     // keyboard controls
 
@@ -608,7 +414,7 @@ static void load_destruct_config(Config *config_)
         if ((section = config_add_section(config_, "destruct custom", NULL)) == NULL)
             exit(-1);
 
-    config.allow_custom = config_get_or_set_bool_option(section, "enable", false, NO_YES);
+    config->allow_custom = config_get_or_set_bool_option(section, "enable", false, NO_YES);
 
     char buffer[15 + 1];
 
@@ -655,87 +461,7 @@ static void load_destruct_config(Config *config_)
     }
 }
 
-/*** Startup ***/
-
-void JE_destructGame(void)
-{
-    unsigned int i;
-
-    /* This is the entry function.  Any one-time actions we need to
-     * perform can go in here. */
-    JE_clr256(VGAScreen);
-    JE_showVGA();
-
-    load_destruct_config(&opentyrian_config);
-
-    //malloc things that have customizable sizes
-    shotRec  = malloc(sizeof(struct destruct_shot_s)  * config.max_shots);
-    exploRec = malloc(sizeof(struct destruct_explo_s) * config.max_explosions);
-    world.mapWalls = malloc(sizeof(struct destruct_wall_s) * config.max_walls);
-
-    //Malloc enough structures to cover all of this session's possible needs.
-    for (i = 0; i < 10; i++)
-        config.max_installations = MAX(config.max_installations, basetypes[i][0]);
-    destruct_player[PLAYER_LEFT ].unit = malloc(sizeof(struct destruct_unit_s) * config.max_installations);
-    destruct_player[PLAYER_RIGHT].unit = malloc(sizeof(struct destruct_unit_s) * config.max_installations);
-
-    destructTempScreen = game_screen;
-    world.VGAScreen = VGAScreen;
-
-    JE_loadCompShapes(&destructSpriteSheet, '~');
-
-    fade_black(1);
-
-    JE_destructMain();
-
-    free_sprite2s(&destructSpriteSheet);
-
-    //and of course exit actions go here.
-    free(shotRec);
-    free(exploRec);
-    free(world.mapWalls);
-    free(destruct_player[PLAYER_LEFT ].unit);
-    free(destruct_player[PLAYER_RIGHT].unit);
-}
-
-static void JE_destructMain(void)
-{
-    enum de_state_t curState;
-
-    JE_loadPic(VGAScreen, 11, false);
-    JE_introScreen();
-
-    DE_ResetPlayers();
-
-    destruct_player[PLAYER_LEFT ].is_cpu = config.ai[PLAYER_LEFT];
-    destruct_player[PLAYER_RIGHT].is_cpu = config.ai[PLAYER_RIGHT];
-
-    while (true)
-    {
-        world.destructMode = JE_modeSelect();
-
-        if (world.destructMode == MODE_NONE)
-            break; /* User is quitting */
-
-        do
-        {
-
-            destructFirstTime = true;
-            JE_loadPic(VGAScreen, 11, false);
-
-            DE_ResetUnits();
-            DE_ResetLevel();
-            do
-            {
-                curState = DE_RunTick();
-            } while (curState == STATE_CONTINUE);
-
-            fade_black(25);
-        } while (curState == STATE_RELOAD);
-    }
-}
-
-static void JE_introScreen(void)
+void JE_introScreen(void)
 {
     memcpy(VGAScreen2->pixels, VGAScreen->pixels, VGAScreen2->h * VGAScreen2->pitch);
     JE_outText(VGAScreen, JE_fontCenter(specialName[SA_DESTRUCT - 1], TINY_FONT), 90, specialName[SA_DESTRUCT - 1], 12, 5);
@@ -762,18 +488,18 @@ static void JE_introScreen(void)
  * The return value is the selected mode, or -1 (MODE_NONE)
  * if the user quits.
  */
-static void DrawModeSelectMenu(enum de_mode_t mode)
+static void DrawModeSelectMenu(const struct destruct_config_s * config, enum de_mode_t mode)
 {
     int i;
 
     /* Helper function of JE_modeSelect.  Do not use elsewhere. */
     for (i = 0; i < DESTRUCT_MODES; i++)
         JE_textShade(VGAScreen, JE_fontCenter(destructModeName[i], TINY_FONT), 82 + i * 12, destructModeName[i], 12, (i == mode) * 4, FULL_SHADE);
-    if (config.allow_custom == true)
+    if (config->allow_custom == true)
         JE_textShade(VGAScreen, JE_fontCenter("Custom", TINY_FONT), 82 + i * 12, "Custom", 12, (i == mode) * 4, FULL_SHADE);
 }
 
-static enum de_mode_t JE_modeSelect(void)
+enum de_mode_t JE_modeSelect(const struct destruct_config_s * config)
 {
     enum de_mode_t mode;
 
@@ -781,7 +507,7 @@ static enum de_mode_t JE_modeSelect(void)
     mode = MODE_5CARDWAR;
 
     // Draw the menu and fade us in
-    DrawModeSelectMenu(mode);
+    DrawModeSelectMenu(config, mode);
 
     JE_showVGA();
     fade_palette(colors, 15, 0, 255);
@@ -790,7 +516,7 @@ static enum de_mode_t JE_modeSelect(void)
     while (true)
     {
         /* Re-draw the menu every iteration */
-        DrawModeSelectMenu(mode);
+        DrawModeSelectMenu(config, mode);
         JE_showVGA();
 
         /* Grab keys */
@@ -815,7 +541,7 @@ static enum de_mode_t JE_modeSelect(void)
         {
             if (mode == MODE_FIRST)
             {
-                if (config.allow_custom == true)
+                if (config->allow_custom == true)
                     mode = MODE_LAST;
                 else
                     mode = MODE_LAST-1;
@@ -829,7 +555,7 @@ static enum de_mode_t JE_modeSelect(void)
         {
             if (mode >= MODE_LAST-1)
             {
-                if (config.allow_custom == true && mode == MODE_LAST-1)
+                if (config->allow_custom == true && mode == MODE_LAST-1)
                     mode++;
                 else
                     mode = MODE_FIRST;
@@ -847,7 +573,10 @@ static enum de_mode_t JE_modeSelect(void)
     return mode;
 }
 
-static void JE_generateTerrain(void)
+static void JE_generateTerrain(const struct destruct_config_s * config,
+                               struct destruct_player_s * destruct_player,
+                               struct destruct_world_s * world,
+                               SDL_Surface * destructTempScreen)
 {
     /* The unique modifiers:
         Altered generation (really tall)
@@ -859,43 +588,43 @@ static void JE_generateTerrain(void)
         Walls
     */
 
-    world.mapFlags = MAP_NORMAL;
+    world->mapFlags = MAP_NORMAL;
 
     if (mt_rand() % 2 == 0)
-        world.mapFlags |= MAP_WALLS;
+        world->mapFlags |= MAP_WALLS;
     if (mt_rand() % 4 == 0)
-        world.mapFlags |= MAP_HOLES;
+        world->mapFlags |= MAP_HOLES;
     switch (mt_rand() % 4)
     {
     case 0:
-        world.mapFlags |= MAP_FUZZY;
+        world->mapFlags |= MAP_FUZZY;
         break;
 
     case 1:
-        world.mapFlags |= MAP_TALL;
+        world->mapFlags |= MAP_TALL;
         break;
 
     case 2:
-        world.mapFlags |= MAP_RINGS;
+        world->mapFlags |= MAP_RINGS;
         break;
     }
 
     play_song(goodsel[mt_rand() % 14] - 1);
 
-    DE_generateBaseTerrain(world.mapFlags, world.baseMap);
-    DE_generateUnits(world.baseMap);
-    DE_generateWalls(&world);
-    DE_drawBaseTerrain(world.baseMap);
+    DE_generateBaseTerrain(world->mapFlags, world->baseMap);
+    DE_generateUnits(destruct_player, world);
+    DE_generateWalls(config, destruct_player, world);
+    DE_drawBaseTerrain(world->baseMap);
 
-    if (world.mapFlags & MAP_RINGS)
-        DE_generateRings(world.VGAScreen, PIXEL_DIRT);
-    if (world.mapFlags & MAP_HOLES)
-        DE_generateRings(world.VGAScreen, PIXEL_BLACK);
+    if (world->mapFlags & MAP_RINGS)
+        DE_generateRings(world->VGAScreen, PIXEL_DIRT);
+    if (world->mapFlags & MAP_HOLES)
+        DE_generateRings(world->VGAScreen, PIXEL_BLACK);
 
-    JE_aliasDirt(world.VGAScreen);
+    JE_aliasDirt(world->VGAScreen);
     JE_showVGA();
 
-    memcpy(destructTempScreen->pixels, VGAScreen->pixels, destructTempScreen->pitch * destructTempScreen->h);
+    memcpy(destructTempScreen->pixels, world->VGAScreen->pixels, destructTempScreen->pitch * destructTempScreen->h);
 }
 
 static void DE_generateBaseTerrain(unsigned int mapFlags, unsigned int * baseWorld)
@@ -951,7 +680,7 @@ static void DE_drawBaseTerrain(unsigned int * baseWorld)
     }
 }
 
-static void DE_generateUnits(unsigned int * baseWorld)
+static void DE_generateUnits(struct destruct_player_s * destruct_player, struct destruct_world_s * world)
 {
     unsigned int i, j, numSatellites;
 
@@ -960,7 +689,7 @@ static void DE_generateUnits(unsigned int * baseWorld)
         numSatellites = 0;
         destruct_player[i].unitsRemaining = 0;
 
-        for (j = 0; j < basetypes[baseLookup[i][world.destructMode]][0]; j++)
+        for (j = 0; j < basetypes[baseLookup[i][world->destructMode]][0]; j++)
         {
             /* Not everything is the same between players */
             if (i == PLAYER_LEFT)
@@ -972,14 +701,14 @@ static void DE_generateUnits(unsigned int * baseWorld)
                 destruct_player[i].unit[j].unitX = 320 - ((mt_rand() % 120) + 22);
             }
 
-            destruct_player[i].unit[j].unitY = JE_placementPosition(destruct_player[i].unit[j].unitX - 1, 14, baseWorld);
-            destruct_player[i].unit[j].unitType = basetypes[baseLookup[i][world.destructMode]][(mt_rand() % 10) + 1];
+            destruct_player[i].unit[j].unitY = JE_placementPosition(destruct_player[i].unit[j].unitX - 1, 14, world->baseMap);
+            destruct_player[i].unit[j].unitType = basetypes[baseLookup[i][world->destructMode]][(mt_rand() % 10) + 1];
 
             /* Sats are special cases since they are useless.  They don't count
              * as active units and we can't have a team of all sats */
             if (destruct_player[i].unit[j].unitType == UNIT_SATELLITE)
             {
-                if (numSatellites == basetypes[baseLookup[i][world.destructMode]][0])
+                if (numSatellites == basetypes[baseLookup[i][world->destructMode]][0])
                 {
                     destruct_player[i].unit[j].unitType = UNIT_TANK;
                     destruct_player[i].unitsRemaining++;
@@ -1014,24 +743,26 @@ static void DE_generateUnits(unsigned int * baseWorld)
     }
 }
 
-static void DE_generateWalls(struct destruct_world_s * gameWorld)
+static void DE_generateWalls(const struct destruct_config_s * config,
+                             const struct destruct_player_s * destruct_player,
+                             struct destruct_world_s * gameWorld)
 {
     unsigned int i, j, wallX;
     unsigned int wallHeight, remainWalls;
     unsigned int tries;
     bool isGood;
 
-    if ((world.mapFlags & MAP_WALLS) == false)
+    if ((gameWorld->mapFlags & MAP_WALLS) == false)
     {
         /* Just clear them out */
-        for (i = 0; i < config.max_walls; i++)
+        for (i = 0; i < config->max_walls; i++)
         {
             gameWorld->mapWalls[i].wallExist = false;
         }
         return;
     }
 
-    remainWalls = (rand() % (config.max_walls - config.min_walls + 1)) + config.min_walls;
+    remainWalls = (rand() % (config->max_walls - config->min_walls + 1)) + config->min_walls;
 
     do
     {
@@ -1058,7 +789,7 @@ static void DE_generateWalls(struct destruct_world_s * gameWorld)
              */
             for (i = 0; i < MAX_PLAYERS; i++)
             {
-                for (j = 0; j < config.max_installations; j++)
+                for (j = 0; j < config->max_installations; j++)
                 {
                     if ((wallX > destruct_player[i].unit[j].unitX - 12) &&
                         (wallX < destruct_player[i].unit[j].unitX + 13))
@@ -1184,7 +915,7 @@ static unsigned int JE_placementPosition(unsigned int passed_x, unsigned int wid
     return new_y;
 }
 
-static bool JE_stabilityCheck(unsigned int x, unsigned int y)
+static bool JE_stabilityCheck(const SDL_Surface * destructTempScreen, unsigned int x, unsigned int y)
 {
     unsigned int i, numDirtPixels;
     Uint8 * s;
@@ -1206,7 +937,7 @@ static bool JE_stabilityCheck(unsigned int x, unsigned int y)
     return (numDirtPixels < 10);
 }
 
-static void JE_tempScreenChecking(void) /*and copy to vgascreen*/
+static void JE_tempScreenChecking(const struct destruct_config_s * config, const SDL_Surface * destructTempScreen) /*and copy to vgascreen*/
 {
     Uint8 *s = VGAScreen->pixels;
     s += 12 * VGAScreen->pitch;
@@ -1230,8 +961,10 @@ static void JE_tempScreenChecking(void) /*and copy to vgascreen*/
 
             // This block is for aliasing dirt.  Computers are fast these days,
             // and it's fun.
-            if (config.alwaysalias == true && *temps == PIXEL_BLACK)
+            if (config->alwaysalias == true && *temps == PIXEL_BLACK) 
+            {
                 *temps = aliasDirtPixel(VGAScreen, x, y, temps);
+            }
 
             /* This is copying from our temp screen to VGAScreen */
             *s = *temps;
@@ -1242,15 +975,19 @@ static void JE_tempScreenChecking(void) /*and copy to vgascreen*/
     }
 }
 
-static void JE_makeExplosion(unsigned int tempPosX, unsigned int tempPosY, enum de_shot_t shottype)
+static void JE_makeExplosion(const struct destruct_config_s * config,
+                             struct destruct_explo_s * exploRec,
+                             unsigned int tempPosX,
+                             unsigned int tempPosY,
+                             enum de_shot_t shottype)
 {
     unsigned int i, tempExploSize;
 
     /* First find an open explosion. If we can't find one, return.*/
-    for (i = 0; i < config.max_explosions; i++)
+    for (i = 0; i < config->max_explosions; i++)
         if (exploRec[i].isAvailable == true)
             break;
-    if (i == config.max_explosions) /* No empty slots */
+    if (i == config->max_explosions) /* No empty slots */
         return;
 
     exploRec[i].isAvailable = false;
@@ -1298,7 +1035,7 @@ static void JE_eSound(unsigned int sound)
     soundQueue[exploSoundChannel] = sound;
 }
 
-static void JE_superPixel(unsigned int tempPosX, unsigned int tempPosY)
+static void JE_superPixel(const SDL_Surface * destructTempScreen, unsigned int tempPosX, unsigned int tempPosY)
 {
     const unsigned int starPattern[5][5] =
     {
@@ -1417,16 +1154,20 @@ static void JE_pauseScreen(void)
  *
  * The reset functions clear the state of whatever they are assigned to.
  */
-static void DE_ResetUnits(void)
+void DE_ResetUnits(const struct destruct_config_s * config, struct destruct_player_s * destruct_player)
 {
     unsigned int p, u;
 
     for (p = 0; p < MAX_PLAYERS; ++p)
-        for (u = 0; u < config.max_installations; ++u)
+    {
+        for (u = 0; u < config->max_installations; ++u)
+        {
             destruct_player[p].unit[u].health = 0;
+        }
+    }
 }
 
-static void DE_ResetPlayers(void)
+void DE_ResetPlayers(struct destruct_player_s * destruct_player)
 {
     unsigned int i;
 
@@ -1444,28 +1185,41 @@ static void DE_ResetPlayers(void)
     }
 }
 
-static void DE_ResetWeapons(void)
+static void DE_ResetWeapons(const struct destruct_config_s * config,
+                            struct destruct_shot_s * shotRec,
+                            struct destruct_explo_s * exploRec)
 {
     unsigned int i;
 
-    for (i = 0; i < config.max_shots; i++)
+    for (i = 0; i < config->max_shots; i++)
+    {
         shotRec[i].isAvailable = true;
+    }
 
-    for (i = 0; i < config.max_explosions; i++)
+    for (i = 0; i < config->max_explosions; i++)
+    {
         exploRec[i].isAvailable = true;
+    }
 }
 
-static void DE_ResetLevel(void)
+void DE_ResetLevel(const struct destruct_config_s * config,
+                   struct destruct_player_s * destruct_player,
+                   struct destruct_shot_s * shotRec,
+                   struct destruct_explo_s * exploRec,
+                   struct destruct_world_s * world,
+                   SDL_Surface * destructTempScreen)
 {
     /* Okay, let's prep the arena */
 
-    DE_ResetWeapons();
+    DE_ResetWeapons(config, shotRec, exploRec);
 
-    JE_generateTerrain();
-    DE_ResetAI();
+    JE_generateTerrain(config, destruct_player, world, destructTempScreen);
+    DE_ResetAI(config, destruct_player, world);
 }
 
-static void DE_ResetAI(void)
+static void DE_ResetAI(const struct destruct_config_s * config,
+                       struct destruct_player_s * destruct_player,
+                       const struct destruct_world_s * world)
 {
     unsigned int i, j;
     struct destruct_unit_s * ptr;
@@ -1476,7 +1230,7 @@ static void DE_ResetAI(void)
             continue;
         ptr = destruct_player[i].unit;
 
-        for (j = 0; j < config.max_installations; j++, ptr++)
+        for (j = 0; j < config->max_installations; j++, ptr++)
         {
             if (DE_isValidUnit(ptr) == false)
                 continue;
@@ -1488,7 +1242,7 @@ static void DE_ResetAI(void)
 
             ptr->power = (ptr->unitType == UNIT_LASER) ? 6 : 4;
 
-            if (world.mapFlags & MAP_WALLS)
+            if (world->mapFlags & MAP_WALLS)
                 ptr->shotType = defaultCpuWeaponB[ptr->unitType];
             else
                 ptr->shotType = defaultCpuWeapon[ptr->unitType];
@@ -1496,7 +1250,7 @@ static void DE_ResetAI(void)
     }
 }
 
-static void DE_ResetActions(void)
+static void DE_ResetActions(struct destruct_player_s * destruct_player)
 {
     unsigned int i;
 
@@ -1513,26 +1267,31 @@ static void DE_ResetActions(void)
  * Returns true while the game is running or false if the game is
  * to be terminated.
  */
-static enum de_state_t DE_RunTick(void)
+enum de_state_t DE_RunTick(const struct destruct_config_s * config,
+                           struct destruct_player_s * destruct_player,
+                           struct destruct_shot_s * shotRec,
+                           struct destruct_explo_s * exploRec,
+                           struct destruct_world_s * world,
+                           SDL_Surface * destructTempScreen)
 {
     static unsigned int endDelay;
 
     setDelay(1);
 
     memset(soundQueue, 0, sizeof(soundQueue));
-    JE_tempScreenChecking();
+    JE_tempScreenChecking(config, destructTempScreen);
 
-    DE_ResetActions();
-    DE_RunTickCycleDeadUnits();
+    DE_ResetActions(destruct_player);
+    DE_RunTickCycleDeadUnits(config, destruct_player);
 
-    DE_RunTickGravity();
-    DE_RunTickAnimate();
-    DE_RunTickDrawWalls();
-    DE_RunTickExplosions();
-    DE_RunTickShots();
-    DE_RunTickAI();
-    DE_RunTickDrawCrosshairs();
-    DE_RunTickDrawHUD();
+    DE_RunTickGravity(config, destruct_player, destructTempScreen);
+    DE_RunTickAnimate(config, destruct_player);
+    DE_RunTickDrawWalls(config, world);
+    DE_RunTickExplosions(config, destruct_player, exploRec, destructTempScreen);
+    DE_RunTickShots(config, destruct_player, shotRec, exploRec, world, destructTempScreen);
+    DE_RunTickAI(config, destruct_player);
+    DE_RunTickDrawCrosshairs(destruct_player);
+    DE_RunTickDrawHUD(destruct_player);
     JE_showVGA();
 
     if (destructFirstTime)
@@ -1542,15 +1301,15 @@ static enum de_state_t DE_RunTick(void)
         endDelay = 0;
     }
 
-    DE_RunTickGetInput();
-    DE_ProcessInput();
+    DE_RunTickGetInput(destruct_player);
+    DE_ProcessInput(config, destruct_player, shotRec, destructTempScreen);
 
     if (endDelay > 0)
     {
         if (--endDelay == 0)
             return STATE_RELOAD;
     }
-    else if (DE_RunTickCheckEndgame() == true)
+    else if (DE_RunTickCheckEndgame(destruct_player, world) == true)
     {
         endDelay = 80;
     }
@@ -1602,7 +1361,7 @@ static enum de_state_t DE_RunTick(void)
  * Handles something that we do once per tick, such as
  * track ammo and move explosions.
  */
-static void DE_RunTickCycleDeadUnits(void)
+static void DE_RunTickCycleDeadUnits(const struct destruct_config_s * config, struct destruct_player_s * destruct_player)
 {
     unsigned int i;
     struct destruct_unit_s * unit;
@@ -1620,7 +1379,7 @@ static void DE_RunTickCycleDeadUnits(void)
         {
             destruct_player[i].unitSelected++;
             unit++;
-            if (destruct_player[i].unitSelected >= config.max_installations)
+            if (destruct_player[i].unitSelected >= config->max_installations)
             {
                 destruct_player[i].unitSelected = 0;
                 unit = destruct_player[i].unit;
@@ -1629,7 +1388,9 @@ static void DE_RunTickCycleDeadUnits(void)
     }
 }
 
-static void DE_RunTickGravity(void)
+static void DE_RunTickGravity(const struct destruct_config_s * config,
+                              struct destruct_player_s * destruct_player,
+                              const SDL_Surface * destructTempScreen)
 {
     unsigned int i, j;
     struct destruct_unit_s * unit;
@@ -1637,7 +1398,7 @@ static void DE_RunTickGravity(void)
     for (i = 0; i < MAX_PLAYERS; i++)
     {
         unit = destruct_player[i].unit;
-        for (j = 0; j < config.max_installations; j++, unit++)
+        for (j = 0; j < config->max_installations; j++, unit++)
         {
             if (DE_isValidUnit(unit) == false) /* invalid unit */
                 continue;
@@ -1651,13 +1412,13 @@ static void DE_RunTickGravity(void)
             case UNIT_JUMPER:
                 if (unit->isYInAir == true) /* unit is falling down, at least in theory */
                 {
-                    DE_GravityFlyUnit(unit);
+                    DE_GravityFlyUnit(destructTempScreen, unit);
                     break;
                 }
                 /* else treat as a normal unit */
                 /* fall through */
             default:
-                DE_GravityLowerUnit(unit);
+                DE_GravityLowerUnit(destructTempScreen, unit);
             }
 
             /* Draw the unit. */
@@ -1687,7 +1448,7 @@ static void DE_GravityDrawUnit(enum de_player_t team, struct destruct_unit_s * u
     blit_sprite2(VGAScreen, unit->unitX, roundf(unit->unitY) - 13, destructSpriteSheet, anim_index);
 }
 
-static void DE_GravityLowerUnit(struct destruct_unit_s * unit)
+static void DE_GravityLowerUnit(const SDL_Surface * destructTempScreen, struct destruct_unit_s * unit)
 {
     /* units fall at a constant speed.  The heli is an odd case though;
      * we simply give it a downward velocity, but due to a buggy implementation
@@ -1699,7 +1460,7 @@ static void DE_GravityLowerUnit(struct destruct_unit_s * unit)
      */
     if (unit->unitY < 199)  /* checking takes time, don't check if it's at the bottom */
     {
-        if (JE_stabilityCheck(unit->unitX, roundf(unit->unitY)))
+        if (JE_stabilityCheck(destructTempScreen, unit->unitX, roundf(unit->unitY)))
         {
             switch (unit->unitType)
             {
@@ -1718,7 +1479,7 @@ static void DE_GravityLowerUnit(struct destruct_unit_s * unit)
     }
 }
 
-static void DE_GravityFlyUnit(struct destruct_unit_s * unit)
+static void DE_GravityFlyUnit(const SDL_Surface * destructTempScreen, struct destruct_unit_s * unit)
 {
     if (unit->unitY + unit->unitYMov > 199) /* would hit bottom of screen */
     {
@@ -1741,14 +1502,14 @@ static void DE_GravityFlyUnit(struct destruct_unit_s * unit)
     else
         unit->unitYMov += 0.03f;
 
-    if (!JE_stabilityCheck(unit->unitX, roundf(unit->unitY)))
+    if (!JE_stabilityCheck(destructTempScreen, unit->unitX, roundf(unit->unitY)))
     {
         unit->unitYMov = 0;
         unit->isYInAir = false;
     }
 }
 
-static void DE_RunTickAnimate(void)
+static void DE_RunTickAnimate(const struct destruct_config_s * config, struct destruct_player_s * destruct_player)
 {
     unsigned int p, u;
     struct destruct_unit_s * ptr;
@@ -1756,7 +1517,7 @@ static void DE_RunTickAnimate(void)
     for (p = 0; p < MAX_PLAYERS; ++p)
     {
         ptr = destruct_player[p].unit;
-        for (u = 0; u < config.max_installations; ++u, ++ptr)
+        for (u = 0; u < config->max_installations; ++u, ++ptr)
         {
             /* Don't mess with any unit that is unallocated
              * or doesn't animate and is set to frame 0 */
@@ -1771,23 +1532,30 @@ static void DE_RunTickAnimate(void)
     }
 }
 
-static void DE_RunTickDrawWalls(void)
+static void DE_RunTickDrawWalls(const struct destruct_config_s * config, const struct destruct_world_s * world)
 {
     unsigned int i;
 
-    for (i = 0; i < config.max_walls; i++)
-        if (world.mapWalls[i].wallExist)
-            blit_sprite2(VGAScreen, world.mapWalls[i].wallX, world.mapWalls[i].wallY, destructSpriteSheet, 42);
+    for (i = 0; i < config->max_walls; i++)
+    {
+        if (world->mapWalls[i].wallExist)
+        {
+            blit_sprite2(VGAScreen, world->mapWalls[i].wallX, world->mapWalls[i].wallY, destructSpriteSheet, 42);
+        }
+    }
 }
 
-static void DE_RunTickExplosions(void)
+static void DE_RunTickExplosions(const struct destruct_config_s * config,
+                                 struct destruct_player_s * destruct_player,
+                                 struct destruct_explo_s * exploRec,
+                                 const SDL_Surface * destructTempScreen)
 {
     unsigned int i, j;
     int tempPosX, tempPosY;
     float tempRadian;
 
     /* Run through all open explosions.  They are not sorted in any way */
-    for (i = 0; i < config.max_explosions; i++)
+    for (i = 0; i < config->max_explosions; i++)
     {
         if (exploRec[i].isAvailable == true)
             continue;  /* Nothing to do */
@@ -1823,8 +1591,8 @@ static void DE_RunTickExplosions(void)
                     break;
 
                 case EXPL_NORMAL:
-                    JE_superPixel(tempPosX, tempPosY);
-                    DE_TestExplosionCollision(tempPosX, tempPosY);
+                    JE_superPixel(destructTempScreen, tempPosX, tempPosY);
+                    DE_TestExplosionCollision(config, destruct_player, exploRec, tempPosX, tempPosY);
                     break;
 
                 default:
@@ -1842,7 +1610,11 @@ static void DE_RunTickExplosions(void)
     }
 }
 
-static void DE_TestExplosionCollision(unsigned int PosX, unsigned int PosY)
+static void DE_TestExplosionCollision(const struct destruct_config_s * config,
+                                      struct destruct_player_s * destruct_player,
+                                      struct destruct_explo_s * exploRec,
+                                      unsigned int PosX,
+                                      unsigned int PosY)
 {
     unsigned int i, j;
     struct destruct_unit_s * unit;
@@ -1850,7 +1622,7 @@ static void DE_TestExplosionCollision(unsigned int PosX, unsigned int PosY)
     for (i = PLAYER_LEFT; i < MAX_PLAYERS; i++)
     {
         unit = destruct_player[i].unit;
-        for (j = 0; j < config.max_installations; j++, unit++)
+        for (j = 0; j < config->max_installations; j++, unit++)
         {
             if (DE_isValidUnit(unit) == true &&
                 PosX > unit->unitX && PosX < unit->unitX + 11 &&
@@ -1858,18 +1630,28 @@ static void DE_TestExplosionCollision(unsigned int PosX, unsigned int PosY)
             {
                 unit->health--;
                 if (unit->health <= 0)
-                    DE_DestroyUnit(i, unit);
+                {
+                    DE_DestroyUnit(config, destruct_player, exploRec, i, unit);
+                }
             }
         }
     }
 }
 
-static void DE_DestroyUnit(enum de_player_t playerID, struct destruct_unit_s * unit)
+static void DE_DestroyUnit(const struct destruct_config_s * config,
+                           struct destruct_player_s * destruct_player,
+                           struct destruct_explo_s * exploRec,
+                           enum de_player_t playerID,
+                           struct destruct_unit_s * unit)
 {
     /* This function call was an evil evil piece of brilliance before.  Go on.
      * Look at the older revisions.  It passed the result of a comparison.
      * MULTIPLIED.  This is at least a little clearer... */
-    JE_makeExplosion(unit->unitX + 5, roundf(unit->unitY) - 5, (unit->unitType == UNIT_HELI) ? SHOT_SMALL : SHOT_INVALID); /* Helicopters explode like small shots do.  Invalids are their own special case. */
+    JE_makeExplosion(config,
+                     exploRec,
+                     unit->unitX + 5,
+                     roundf(unit->unitY) - 5,
+                     (unit->unitType == UNIT_HELI) ? SHOT_SMALL : SHOT_INVALID /* Helicopters explode like small shots do.  Invalids are their own special case. */);
 
     if (unit->unitType != UNIT_SATELLITE) /* increment score */
     { /* todo: change when teams are created. Hacky kludge for now.*/
@@ -1878,14 +1660,19 @@ static void DE_DestroyUnit(enum de_player_t playerID, struct destruct_unit_s * u
     }
 }
 
-static void DE_RunTickShots(void)
+static void DE_RunTickShots(const struct destruct_config_s * config,
+                            struct destruct_player_s * destruct_player,
+                            struct destruct_shot_s * shotRec,
+                            struct destruct_explo_s * exploRec,
+                            struct destruct_world_s * world,
+                            SDL_Surface * destructTempScreen)
 {
     unsigned int i, j, k;
     unsigned int tempTrails;
     unsigned int tempPosX, tempPosY;
     struct destruct_unit_s * unit;
 
-    for (i = 0; i < config.max_shots; i++)
+    for (i = 0; i < config->max_shots; i++)
     {
         if (shotRec[i].isAvailable == true)
             continue;  /* Nothing to do */
@@ -1943,7 +1730,7 @@ static void DE_RunTickShots(void)
         for (j = 0; j < MAX_PLAYERS; j++)
         {
             unit = destruct_player[j].unit;
-            for (k = 0; k < config.max_installations; k++, unit++)
+            for (k = 0; k < config->max_installations; k++, unit++)
             {
                 if (DE_isValidUnit(unit) == false)
                     continue;
@@ -1952,7 +1739,7 @@ static void DE_RunTickShots(void)
                     tempPosY < unit->unitY && tempPosY > unit->unitY - 13)
                 {
                     shotRec[i].isAvailable = true;
-                    JE_makeExplosion(tempPosX, tempPosY, shotRec[i].shottype);
+                    JE_makeExplosion(config, exploRec, tempPosX, tempPosY, shotRec[i].shottype);
                 }
             }
         }
@@ -1974,30 +1761,30 @@ static void DE_RunTickShots(void)
         }
 
         /* Bounce off of or destroy walls */
-        for (j = 0; j < config.max_walls; j++)
+        for (j = 0; j < config->max_walls; j++)
         {
-            if (world.mapWalls[j].wallExist == true &&
-                tempPosX >= world.mapWalls[j].wallX && tempPosX <= world.mapWalls[j].wallX + 11 &&
-                tempPosY >= world.mapWalls[j].wallY && tempPosY <= world.mapWalls[j].wallY + 14)
+            if (world->mapWalls[j].wallExist == true &&
+                tempPosX >= world->mapWalls[j].wallX && tempPosX <= world->mapWalls[j].wallX + 11 &&
+                tempPosY >= world->mapWalls[j].wallY && tempPosY <= world->mapWalls[j].wallY + 14)
             {
                 if (demolish[shotRec[i].shottype])
                 {
                     /* Blow up the wall and remove the shot. */
-                    world.mapWalls[j].wallExist = false;
+                    world->mapWalls[j].wallExist = false;
                     shotRec[i].isAvailable = true;
-                    JE_makeExplosion(tempPosX, tempPosY, shotRec[i].shottype);
+                    JE_makeExplosion(config, exploRec, tempPosX, tempPosY, shotRec[i].shottype);
                     continue;
                 }
                 else
                 {
                     /* Otherwise, bounce. */
-                    if (shotRec[i].x - shotRec[i].xmov < world.mapWalls[j].wallX ||
-                        shotRec[i].x - shotRec[i].xmov > world.mapWalls[j].wallX + 11)
+                    if (shotRec[i].x - shotRec[i].xmov < world->mapWalls[j].wallX ||
+                        shotRec[i].x - shotRec[i].xmov > world->mapWalls[j].wallX + 11)
                     {
                         shotRec[i].xmov = -shotRec[i].xmov;
                     }
-                    if (shotRec[i].y - shotRec[i].ymov < world.mapWalls[j].wallY ||
-                        shotRec[i].y - shotRec[i].ymov > world.mapWalls[j].wallY + 14)
+                    if (shotRec[i].y - shotRec[i].ymov < world->mapWalls[j].wallY ||
+                        shotRec[i].y - shotRec[i].ymov > world->mapWalls[j].wallY + 14)
                     {
                         if (shotRec[i].ymov < 0)
                             shotRec[i].ymov = -shotRec[i].ymov;
@@ -2015,7 +1802,7 @@ static void DE_RunTickShots(void)
         if ((((Uint8 *)destructTempScreen->pixels)[tempPosX + tempPosY * destructTempScreen->pitch]) == PIXEL_DIRT)
         {
             shotRec[i].isAvailable = true;
-            JE_makeExplosion(tempPosX, tempPosY, shotRec[i].shottype);
+            JE_makeExplosion(config, exploRec, tempPosX, tempPosY, shotRec[i].shottype);
             continue;
         }
     }
@@ -2050,7 +1837,7 @@ static void DE_DrawTrails(struct destruct_shot_s * shot, unsigned int count, uns
     }
 }
 
-static void DE_RunTickAI(void)
+static void DE_RunTickAI(const struct destruct_config_s * config, struct destruct_player_s * destruct_player)
 {
     unsigned int i, j;
     struct destruct_player_s * ptrPlayer, * ptrTarget;
@@ -2067,15 +1854,18 @@ static void DE_RunTickAI(void)
          * and a 'target' variable in the destruct_player struct. */
         j = i + 1;
         if (j >= MAX_PLAYERS)
+        {
             j = 0;
+        }
 
         ptrTarget  = &(destruct_player[j]);
         ptrCurUnit = &(ptrPlayer->unit[ptrPlayer->unitSelected]);
 
         /* This is the start of the original AI.  Heh.  AI. */
-
         if (ptrPlayer->aiMemory.c_noDown > 0)
+        {
             ptrPlayer->aiMemory.c_noDown--;
+        }
 
         /* Until all structs are properly divvied up this must only apply to player1 */
         if (mt_rand() % 100 > 80)
@@ -2121,7 +1911,7 @@ static void DE_RunTickAI(void)
 
         // prefer helicopter
         ptrUnit = ptrPlayer->unit;
-        for (j = 0; j < config.max_installations; j++, ptrUnit++)
+        for (j = 0; j < config->max_installations; j++, ptrUnit++)
         {
             if (DE_isValidUnit(ptrUnit) && ptrUnit->unitType == UNIT_HELI)
             {
@@ -2170,7 +1960,7 @@ static void DE_RunTickAI(void)
             }
 
             ptrUnit = ptrTarget->unit;
-            for (j = 0; j < config.max_installations; j++, ptrUnit++)
+            for (j = 0; j < config->max_installations; j++, ptrUnit++)
             {
                 if (abs((int)ptrUnit->unitX - (int)ptrCurUnit->unitX) < 8)
                 {
@@ -2238,11 +2028,13 @@ static void DE_RunTickAI(void)
         /* This last hack was down in the processing section.
          * What exactly it was doing there I do not know */
         if (ptrCurUnit->unitType == UNIT_LASER || ptrCurUnit->isYInAir == true)
+        {
             ptrPlayer->aiMemory.c_Power = 0;
+        }
     }
 }
 
-static void DE_RunTickDrawCrosshairs(void)
+static void DE_RunTickDrawCrosshairs(struct destruct_player_s * destruct_player)
 {
     unsigned int i;
     int tempPosX, tempPosY;
@@ -2289,7 +2081,7 @@ static void DE_RunTickDrawCrosshairs(void)
     }
 }
 
-static void DE_RunTickDrawHUD(void)
+static void DE_RunTickDrawHUD(struct destruct_player_s * destruct_player)
 {
     unsigned int i;
     unsigned int startX;
@@ -2318,7 +2110,7 @@ static void DE_RunTickDrawHUD(void)
     }
 }
 
-static void DE_RunTickGetInput(void)
+static void DE_RunTickGetInput(struct destruct_player_s * destruct_player)
 {
     unsigned int player_index, key_index, slot_index;
     SDL_Scancode key;
@@ -2358,7 +2150,10 @@ static void DE_RunTickGetInput(void)
     }
 }
 
-static void DE_ProcessInput(void)
+static void DE_ProcessInput(const struct destruct_config_s * config,
+                            struct destruct_player_s * destruct_player,
+                            struct destruct_shot_s * shotRec,
+                            const SDL_Surface * destructTempScreen)
 {
     int direction;
 
@@ -2394,23 +2189,23 @@ static void DE_ProcessInput(void)
         {
             if (destruct_player[player_index].moves.actions[MOVE_LEFT] == true && curUnit->unitX > 5)
             {
-                if (JE_stabilityCheck(curUnit->unitX - 5, roundf(curUnit->unitY)))
+                if (JE_stabilityCheck(destructTempScreen, curUnit->unitX - 5, roundf(curUnit->unitY)))
                 {
                     if (curUnit->lastMove > -5)
                         curUnit->lastMove--;
                     curUnit->unitX--;
-                    if (JE_stabilityCheck(curUnit->unitX, roundf(curUnit->unitY)))
+                    if (JE_stabilityCheck(destructTempScreen, curUnit->unitX, roundf(curUnit->unitY)))
                         curUnit->isYInAir = true;
                 }
             }
             if (destruct_player[player_index].moves.actions[MOVE_RIGHT] == true && curUnit->unitX < 305)
             {
-                if (JE_stabilityCheck(curUnit->unitX + 5, roundf(curUnit->unitY)))
+                if (JE_stabilityCheck(destructTempScreen, curUnit->unitX + 5, roundf(curUnit->unitY)))
                 {
                     if (curUnit->lastMove < 5)
                         curUnit->lastMove++;
                     curUnit->unitX++;
-                    if (JE_stabilityCheck(curUnit->unitX, roundf(curUnit->unitY)))
+                    if (JE_stabilityCheck(destructTempScreen, curUnit->unitX, roundf(curUnit->unitY)))
                         curUnit->isYInAir = true;
                 }
             }
@@ -2461,7 +2256,7 @@ static void DE_ProcessInput(void)
         if (destruct_player[player_index].moves.actions[MOVE_CHANGE] == true)
         {
             destruct_player[player_index].unitSelected++;
-            if (destruct_player[player_index].unitSelected >= config.max_installations)
+            if (destruct_player[player_index].unitSelected >= config->max_installations)
                 destruct_player[player_index].unitSelected = 0;
         }
 
@@ -2479,12 +2274,12 @@ static void DE_ProcessInput(void)
                     break;
 
                 case EXPL_MAGNET:
-                    DE_RunMagnet(player_index, curUnit);
+                    DE_RunMagnet(config, destruct_player, shotRec, player_index, curUnit);
                     break;
 
                 case EXPL_DIRT:
                 case EXPL_NORMAL:
-                    DE_MakeShot(player_index, curUnit, direction);
+                    DE_MakeShot(config, destruct_player, shotRec, player_index, curUnit, direction);
                     break;
 
                 default:
@@ -2514,7 +2309,12 @@ static void DE_CycleWeaponDown(struct destruct_unit_s * unit)
     } while (weaponSystems[unit->unitType][unit->shotType] == 0);
 }
 
-static void DE_MakeShot(enum de_player_t curPlayer, const struct destruct_unit_s * curUnit, int direction)
+static void DE_MakeShot(const struct destruct_config_s * config,
+                        struct destruct_player_s * destruct_player,
+                        struct destruct_shot_s * shotRec,
+                        enum de_player_t curPlayer,
+                        const struct destruct_unit_s * curUnit,
+                        int direction)
 {
     unsigned int i;
     unsigned int shotIndex;
@@ -2522,8 +2322,10 @@ static void DE_MakeShot(enum de_player_t curPlayer, const struct destruct_unit_s
     /* First, find an empty shot struct we can use */
     for (i = 0; ; i++)
     {
-        if (i >= config.max_shots)
+        if (i >= config->max_shots)
+        {
             return;  /* no empty slots.  Do nothing. */
+        }
 
         if (shotRec[i].isAvailable)
         {
@@ -2534,7 +2336,9 @@ static void DE_MakeShot(enum de_player_t curPlayer, const struct destruct_unit_s
 
     /* Helis can't fire when they are on the ground. */
     if (curUnit->unitType == UNIT_HELI && curUnit->isYInAir == false)
+    {
         return;
+    }
 
     /* Play the firing sound */
     soundQueue[curPlayer] = shotSound[curUnit->shotType];
@@ -2567,7 +2371,7 @@ static void DE_MakeShot(enum de_player_t curPlayer, const struct destruct_unit_s
 
         case UNIT_JUMPER: /* Jumpers are normally only special for the left hand player.  Bug?  Or feature? */
 
-            if (config.jumper_straight[curPlayer])
+            if (config->jumper_straight[curPlayer])
             {
                 /* This is identical to the default case.
                  * I considered letting the switch fall through
@@ -2620,7 +2424,11 @@ static void DE_MakeShot(enum de_player_t curPlayer, const struct destruct_unit_s
     shotRec[shotIndex].trailc[3] = 0;
 }
 
-static void DE_RunMagnet(enum de_player_t curPlayer, struct destruct_unit_s * magnet)
+static void DE_RunMagnet(const struct destruct_config_s * config,
+                         struct destruct_player_s * destruct_player,
+                         struct destruct_shot_s * shotRec,
+                         enum de_player_t curPlayer,
+                         struct destruct_unit_s * magnet)
 {
     unsigned int i;
     enum de_player_t curEnemy;
@@ -2631,7 +2439,7 @@ static void DE_RunMagnet(enum de_player_t curPlayer, struct destruct_unit_s * ma
     direction = (curPlayer == PLAYER_LEFT) ? -1 : 1;
 
     /* Push all shots that are in front of the magnet */
-    for (i = 0; i < config.max_shots; i++)
+    for (i = 0; i < config->max_shots; i++)
     {
         if (shotRec[i].isAvailable == false)
         {
@@ -2644,7 +2452,7 @@ static void DE_RunMagnet(enum de_player_t curPlayer, struct destruct_unit_s * ma
     }
 
     enemyUnit = destruct_player[curEnemy].unit;
-    for (i = 0; i < config.max_installations; i++, enemyUnit++) /* magnets push coptors */
+    for (i = 0; i < config->max_installations; i++, enemyUnit++) /* magnets push coptors */
     {
         if (DE_isValidUnit(enemyUnit) &&
             enemyUnit->unitType == UNIT_HELI &&
@@ -2699,17 +2507,17 @@ static inline bool DE_isValidUnit(struct destruct_unit_s * unit)
     return unit->health > 0;
 }
 
-static bool DE_RunTickCheckEndgame(void)
+static bool DE_RunTickCheckEndgame(struct destruct_player_s * destruct_player, struct destruct_world_s * world)
 {
     if (destruct_player[PLAYER_LEFT].unitsRemaining == 0)
     {
-        destruct_player[PLAYER_RIGHT].score += ModeScore[PLAYER_LEFT][world.destructMode];
+        destruct_player[PLAYER_RIGHT].score += ModeScore[PLAYER_LEFT][world->destructMode];
         soundQueue[7] = V_CLEARED_PLATFORM;
         return true;
     }
     if (destruct_player[PLAYER_RIGHT].unitsRemaining == 0)
     {
-        destruct_player[PLAYER_LEFT].score += ModeScore[PLAYER_RIGHT][world.destructMode];
+        destruct_player[PLAYER_LEFT].score += ModeScore[PLAYER_RIGHT][world->destructMode];
         soundQueue[7] = V_CLEARED_PLATFORM;
         return true;
     }

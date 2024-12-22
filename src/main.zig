@@ -1,6 +1,5 @@
 const std = @import("std");
 const SDL = @import("sdl2");
-const target_os = @import("builtin").os;
 
 const c = @cImport({
     @cInclude("time.h");
@@ -17,6 +16,8 @@ const c = @cImport({
     @cInclude("varz.h");
     @cInclude("video.h");
 });
+
+const destruct = @import("destruct.zig");
 
 pub fn main() u8 {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -64,7 +65,7 @@ pub fn main() u8 {
 
     c.init_video();
     c.init_keyboard();
-    std.log.debug("assuming mouse detected", .{});  // SDL can't tell us if there isn't one
+    std.log.debug("assuming mouse detected", .{}); // SDL can't tell us if there isn't one
 
     c.JE_loadPals();
     c.JE_loadMainShapeTables("tyrian.shp");
@@ -72,9 +73,9 @@ pub fn main() u8 {
     std.log.debug("initializing SDL audio...", .{});
     _ = c.init_audio();
     c.load_music();
-    c.loadSndFile(false);   // xmas = false
+    c.loadSndFile(false); // xmas = false
 
-    c.JE_destructGame();
+    destruct.JE_destructGame();
 
     c.JE_tyrianHalt(0);
 
