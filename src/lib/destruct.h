@@ -42,9 +42,7 @@ enum de_mode_t
     MODE_HELIDEFENSE,
     MODE_OUTGUNNED,
     MODE_CUSTOM,
-    MODE_FIRST = MODE_5CARDWAR,
-    MODE_LAST = MODE_CUSTOM,
-    MAX_MODES = 6,
+    MAX_MODES,
     MODE_NONE = -1
 };
 
