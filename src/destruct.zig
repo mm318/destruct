@@ -394,7 +394,7 @@ const MenuState = struct {
 
     fn draw(self: *MenuState, config: *const c.destruct_config_s) void {
         if (self.screen_changed) {
-            _ = c.memcpy(c.VGAScreen2.*.pixels, c.VGAScreen.*.pixels, @intCast(c.VGAScreen2.*.h * c.VGAScreen2.*.pitch));
+            _ = c.memcpy(c.VGAScreen.*.pixels, c.VGAScreen2.*.pixels, @intCast(c.VGAScreen.*.h * c.VGAScreen.*.pitch));
             self.screen_changed = false;
         }
         switch (self.state) {
@@ -408,6 +408,7 @@ const MenuState = struct {
 ////// menu()
 // The return value is the selected mode, or -1 (MODE_NONE) if the user quits.
 fn menu(config: *const c.destruct_config_s) c.de_mode_t {
+    _ = c.memcpy(c.VGAScreen2.*.pixels, c.VGAScreen.*.pixels, @intCast(c.VGAScreen2.*.h * c.VGAScreen2.*.pitch));
     var menu_state: MenuState = .{ .state = .{ .main = .{} }, .screen_changed = true };
 
     // Draw the menu and fade us in
