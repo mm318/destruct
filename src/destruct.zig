@@ -82,7 +82,7 @@ fn JE_destructMain(self: *Destruct) void {
     self.destruct_player[c.PLAYER_RIGHT].is_cpu = self.config.ai[c.PLAYER_RIGHT];
 
     while (true) {
-        self.world.destructMode = menu(&self.config);
+        self.world.destructMode = JE_destructMenu(&self.config);
         if (self.world.destructMode == c.MODE_NONE) {
             break; // User is quitting
         }
@@ -358,29 +358,29 @@ const MenuState = struct {
     fn handleKeyPress(self: *MenuState, config: *const c.destruct_config_s) bool {
         var terminal = false;
         switch (self.state) {
-            Menus.main => |*value| {
-                const selection_made = value.handleKeyPress();
+            Menus.main => |*menu| {
+                const selection_made = menu.handleKeyPress();
                 if (selection_made) {
-                    switch (value.state) {
+                    switch (menu.state) {
                         MainMenu.Options.new_game => self.* = .{ .state = .{ .new_game = .{} }, .screen_changed = true },
                         MainMenu.Options.controller => self.* = .{ .state = .{ .controller = .{} }, .screen_changed = true },
                         MainMenu.Options.quit => terminal = true,
                     }
                 }
             },
-            Menus.new_game => |*value| {
-                const selection_made = value.handleKeyPress(config);
+            Menus.new_game => |*menu| {
+                const selection_made = menu.handleKeyPress(config);
                 if (selection_made) {
-                    switch (value.state) {
+                    switch (menu.state) {
                         c.MAX_MODES => self.* = .{ .state = .{ .main = .{} }, .screen_changed = true },
                         else => terminal = true,
                     }
                 }
             },
-            Menus.controller => |*value| {
-                const selection_made = value.handleKeyPress();
+            Menus.controller => |*menu| {
+                const selection_made = menu.handleKeyPress();
                 if (selection_made) {
-                    switch (value.key_state) {
+                    switch (menu.key_state) {
                         c.MAX_KEY => self.* = .{ .state = .{ .main = .{} }, .screen_changed = true },
                         else => {
                             // TODO: set new key
@@ -398,16 +398,16 @@ const MenuState = struct {
             self.screen_changed = false;
         }
         switch (self.state) {
-            Menus.main => |*value| value.draw(),
-            Menus.new_game => |*value| value.draw(config),
-            Menus.controller => |*value| value.draw(),
+            Menus.main => |*menu| menu.draw(),
+            Menus.new_game => |*menu| menu.draw(config),
+            Menus.controller => |*menu| menu.draw(),
         }
     }
 };
 
-////// menu()
+////// JE_destructMenu()
 // The return value is the selected mode, or -1 (MODE_NONE) if the user quits.
-fn menu(config: *const c.destruct_config_s) c.de_mode_t {
+fn JE_destructMenu(config: *const c.destruct_config_s) c.de_mode_t {
     _ = c.memcpy(c.VGAScreen2.*.pixels, c.VGAScreen.*.pixels, @intCast(c.VGAScreen2.*.h * c.VGAScreen2.*.pitch));
     var menu_state: MenuState = .{ .state = .{ .main = .{} }, .screen_changed = true };
 
@@ -444,7 +444,7 @@ fn menu(config: *const c.destruct_config_s) c.de_mode_t {
 
     return switch (menu_state.state) {
         MenuState.Menus.main => c.MODE_NONE,
-        MenuState.Menus.new_game => |value| value.state,
+        MenuState.Menus.new_game => |menu| menu.state,
         MenuState.Menus.controller => unreachable,
     };
 }
