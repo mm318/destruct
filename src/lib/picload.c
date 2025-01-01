@@ -57,7 +57,7 @@ void JE_loadPic(SDL_Surface *screen, JE_byte PCXnumber, JE_boolean storepal)
 
 	s = (Uint8 *)screen->pixels;
 
-	for (int i = 0; i < 320 * 200; )
+	for (int i = 0; i < vga_width * vga_height; )
 	{
 		if ((*p & 0xc0) == 0xc0)
 		{
@@ -71,9 +71,9 @@ void JE_loadPic(SDL_Surface *screen, JE_byte PCXnumber, JE_boolean storepal)
 			*s = *p;
 			s++; p++;
 		}
-		if (i && (i % 320 == 0))
+		if (i && (i % vga_width == 0))
 		{
-			s += screen->pitch - 320;
+			s += screen->pitch - vga_width;
 		}
 	}
 

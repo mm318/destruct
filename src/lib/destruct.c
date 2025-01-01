@@ -607,7 +607,7 @@ static void DE_generateUnits(struct destruct_player_s * destruct_player, struct 
             }
             else
             {
-                destruct_player[i].unit[j].unitX = 320 - ((mt_rand() % 120) + 22);
+                destruct_player[i].unit[j].unitX = vga_width - ((mt_rand() % 120) + 22);
             }
 
             destruct_player[i].unit[j].unitY = JE_placementPosition(destruct_player[i].unit[j].unitX - 1, 14, world->baseMap);
@@ -736,8 +736,8 @@ static void DE_generateRings(SDL_Surface * screen, Uint8 pixel)
     rings = mt_rand() % 6 + 1;
     for (i = 1; i <= rings; i++)
     {
-        tempPosX1 = (mt_rand() % 320);
-        tempPosY1 = (mt_rand() % 160) + 20;
+        tempPosX1 = (mt_rand() % vga_width);
+        tempPosY1 = (mt_rand() % (vga_height - 40)) + 20;
         tempSize = (mt_rand() % 40) + 10;  /*Size*/
 
         for (j = 1; j <= tempSize * tempSize * 2; j++)
@@ -745,8 +745,7 @@ static void DE_generateRings(SDL_Surface * screen, Uint8 pixel)
             tempRadian = mt_rand_lt1() * (2 * M_PI);
             tempPosY2 = tempPosY1 + roundf(cosf(tempRadian) * (mt_rand_lt1() * 0.1f + 0.9f) * tempSize);
             tempPosX2 = tempPosX1 + roundf(sinf(tempRadian) * (mt_rand_lt1() * 0.1f + 0.9f) * tempSize);
-            if ((tempPosY2 > 12) && (tempPosY2 < 200) &&
-                (tempPosX2 > 0) && (tempPosX2 < 319))
+            if ((tempPosY2 > 12) && (tempPosY2 < vga_height) && (tempPosX2 > 0) && (tempPosX2 < vga_width - 1))
             {
                 ((Uint8 *)screen->pixels)[tempPosX2 + tempPosY2 * screen->pitch] = pixel;
             }
@@ -1482,12 +1481,12 @@ static void DE_RunTickExplosions(const struct destruct_config_s * config,
              * going to replicate it w/o risking out of bound arrays. */
 
             while (tempPosX < 0)
-                tempPosX += 320;
-            while (tempPosX > 320)
-                tempPosX -= 320;
+                tempPosX += vga_width;
+            while (tempPosX > vga_width)
+                tempPosX -= vga_width;
 
             /* We don't draw our explosion if it's out of bounds vertically */
-            if (tempPosY >= 200 || tempPosY <= 15)
+            if (tempPosY >= vga_height || tempPosY <= 15)
                 continue;
 
             /* And now the drawing.  There are only two types of explosions
@@ -2000,7 +1999,7 @@ static void DE_RunTickDrawHUD(struct destruct_player_s * destruct_player)
     for (i = 0; i < MAX_PLAYERS; i++)
     {
         curUnit = &(destruct_player[i].unit[destruct_player[i].unitSelected]);
-        startX = ((i == PLAYER_LEFT) ? 0 : 320 - 150);
+        startX = ((i == PLAYER_LEFT) ? 0 : vga_width - 150);
 
         fill_rectangle_xy(VGAScreen, startX +  5, 3, startX +  14, 8, 241);
         JE_rectangle(VGAScreen, startX +  4, 2, startX +  15, 9, 242);
