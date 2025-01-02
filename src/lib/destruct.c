@@ -1008,38 +1008,6 @@ static void JE_superPixel(const SDL_Surface * destructInternalScreen, unsigned i
     }
 }
 
-void JE_helpScreen(SDL_Surface * screen, SDL_Surface * destructPrevScreen)
-{
-    unsigned int i, j;
-
-    // JE_getVGA();  didn't do anything anyway?
-    fade_black(15);
-    memcpy(destructPrevScreen->pixels, screen->pixels, destructPrevScreen->h * destructPrevScreen->pitch);
-    JE_clr256(screen);
-
-    for (i = 0; i < 2; i++)
-    {
-        JE_outText(screen, 100,  5 + i * 90, destructHelp[i * 12 + 0], 2, 4);
-        JE_outText(screen, 100, 15 + i * 90, destructHelp[i * 12 + 1], 2, 1);
-        for (j = 3; j <= 12; j++)
-            JE_outText(screen, ((j - 1) % 2) * 160 + 10, 15 + ((j - 1) / 2) * 12 + i * 90, destructHelp[i * 12 + j-1], 1, 3);
-    }
-    JE_outText(screen, 30, 190, destructHelp[24], 3, 4);
-    JE_showVGA();
-    fade_palette(colors, 15, 0, 255);
-
-    do  /* wait until user hits a key */
-    {
-        service_SDL_events(true);
-        SDL_Delay(16);
-    } while (!newkey);
-
-    fade_black(15);
-    memcpy(screen->pixels, destructPrevScreen->pixels, screen->h * screen->pitch);
-    JE_showVGA();
-    fade_palette(colors, 15, 0, 255);
-}
-
 static void JE_pauseScreen(SDL_Surface * screen, SDL_Surface * destructPrevScreen)
 {
     set_volume(tyrMusicVolume / 2, fxVolume);
