@@ -97,7 +97,6 @@ enum de_mapflags_t
 
 /*** Function decs ***/
 // Prep functions
-static void JE_helpScreen(void);
 static void JE_pauseScreen(void);
 
 // level generating functions
@@ -168,7 +167,7 @@ static void DE_RunTickShots(const struct destruct_config_s * config,
                             struct destruct_shot_s * shotRec,
                             struct destruct_explo_s * exploRec,
                             struct destruct_world_s * world,
-                            SDL_Surface * destructTempScreen);
+                            const SDL_Surface * destructTempScreen);
 static void DE_RunTickExplosions(const struct destruct_config_s * config,
                                  struct destruct_player_s * destruct_player,
                                  struct destruct_explo_s * exploRec,
@@ -463,7 +462,7 @@ void load_destruct_config(Config *config_, struct destruct_config_s * config)
 
 void JE_introScreen(void)
 {
-    memcpy(VGAScreen2->pixels, VGAScreen->pixels, VGAScreen2->h * VGAScreen2->pitch);
+    memcpy(game_screen->pixels, VGAScreen->pixels, game_screen->h * game_screen->pitch);
     JE_outText(VGAScreen, JE_fontCenter(specialName[SA_DESTRUCT - 1], TINY_FONT), 90, specialName[SA_DESTRUCT - 1], 12, 5);
     JE_outText(VGAScreen, JE_fontCenter(miscText[64], TINY_FONT), 180, miscText[64], 15, 2);
     JE_outText(VGAScreen, JE_fontCenter(miscText[65], TINY_FONT), 190, miscText[65], 15, 2);
@@ -478,7 +477,7 @@ void JE_introScreen(void)
     }
 
     fade_black(15);
-    memcpy(VGAScreen->pixels, VGAScreen2->pixels, VGAScreen->h * VGAScreen->pitch);
+    memcpy(VGAScreen->pixels, game_screen->pixels, VGAScreen->h * VGAScreen->pitch);
     JE_showVGA();
 }
 
@@ -1004,11 +1003,11 @@ static void JE_superPixel(const SDL_Surface * destructTempScreen, unsigned int t
     }
 }
 
-static void JE_helpScreen(void)
+void JE_helpScreen(void)
 {
     unsigned int i, j;
 
-    //JE_getVGA();  didn't do anything anyway?
+    // JE_getVGA();  didn't do anything anyway?
     fade_black(15);
     memcpy(VGAScreen2->pixels, VGAScreen->pixels, VGAScreen2->h * VGAScreen2->pitch);
     JE_clr256(VGAScreen);
@@ -1573,7 +1572,7 @@ static void DE_RunTickShots(const struct destruct_config_s * config,
                             struct destruct_shot_s * shotRec,
                             struct destruct_explo_s * exploRec,
                             struct destruct_world_s * world,
-                            SDL_Surface * destructTempScreen)
+                            const SDL_Surface * destructTempScreen)
 {
     unsigned int i, j, k;
     unsigned int tempTrails;

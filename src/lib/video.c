@@ -74,8 +74,17 @@ void init_video(void)
 
 	// Create the software surfaces that the game renders to. These are all 320x200x8 regardless
 	// of the window size or monitor resolution.
+
+	// always what is currently being displayed
 	VGAScreen = VGAScreenSeg = SDL_CreateRGBSurface(0, vga_width, vga_height, 8, 0, 0, 0, 0);
+
+	// buffer used by JE_helpScreen()/JE_pauseScreen() to store what screen to return to
+	// for JE_helpScreen(), the previous screen will be either the menu or the game
+	// for JE_pauseScreen(), the previous screen will be the game
 	VGAScreen2 = SDL_CreateRGBSurface(0, vga_width, vga_height, 8, 0, 0, 0, 0);
+
+	// during menu, this buffer is used by JE_destructMenu() to store what screen to return to (finished game that is faded)
+	// during game, this buffer is used for game logic, like JE_generateTerrain() and JE_stabilityCheck()
 	game_screen = SDL_CreateRGBSurface(0, vga_width, vga_height, 8, 0, 0, 0, 0);
 
 	// The game code writes to surface->pixels directly without locking, so make sure that we

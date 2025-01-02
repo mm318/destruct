@@ -254,6 +254,7 @@ void load_destruct_config(Config *config_, struct destruct_config_s * config);
 
 // Prep functions
 void JE_introScreen(void);
+void JE_helpScreen(void);
 
 // level generating functions
 void DE_ResetLevel(const struct destruct_config_s * config,
