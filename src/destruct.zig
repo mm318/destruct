@@ -173,7 +173,7 @@ const MainMenu = struct {
 
         // See what was pressed
         if (c.keysactive[SDL.SDL_SCANCODE_F1] != 0) {
-            c.JE_helpScreen(currScreen, destructPrevScreen);
+            JE_helpScreen(currScreen, destructPrevScreen);
         }
         if (c.keysactive[SDL.SDL_SCANCODE_ESCAPE] != 0) {
             self.state = Options.quit;
@@ -254,7 +254,7 @@ const NewGameMenu = struct {
 
         // See what was pressed
         if (c.keysactive[SDL.SDL_SCANCODE_F1] != 0) {
-            c.JE_helpScreen(currScreen, destructPrevScreen);
+            JE_helpScreen(currScreen, destructPrevScreen);
         }
         if (c.keysactive[SDL.SDL_SCANCODE_ESCAPE] != 0) {
             self.state = c.MAX_MODES; // User is quitting, return failure
@@ -525,4 +525,29 @@ fn JE_destructMenu(
         MenuState.Menus.new_game => |menu| menu.state,
         MenuState.Menus.controller => unreachable,
     };
+}
+
+export fn JE_helpScreen(currScreen: *c.SDL_Surface, destructPrevScreen: *c.SDL_Surface) void {
+    // JE_getVGA();  didn't do anything anyway?
+    c.fade_black(15);
+    _ = c.memcpy(destructPrevScreen.*.pixels, currScreen.*.pixels, @intCast(destructPrevScreen.*.h * destructPrevScreen.*.pitch));
+
+    var menu_state = ControllerMenu{};
+    menu_state.draw(currScreen);
+
+    c.fade_palette(&c.colors, 15, 0, 255);
+
+    // wait until user hits a key
+    while (true) {
+        c.service_SDL_events(true);
+        SDL.SDL_Delay(16);
+        if (c.newkey) {
+            break;
+        }
+    }
+
+    c.fade_black(15);
+    _ = c.memcpy(currScreen.*.pixels, destructPrevScreen.*.pixels, @intCast(currScreen.*.h * currScreen.*.pitch));
+    c.JE_showVGA();
+    c.fade_palette(&c.colors, 15, 0, 255);
 }
