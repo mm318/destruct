@@ -253,8 +253,8 @@ extern JE_byte basetypes[10][11];
 void load_destruct_config(Config *config_, struct destruct_config_s * config);
 
 // Prep functions
-void JE_introScreen(void);
-void JE_helpScreen(void);
+void JE_introScreen(SDL_Surface * screen, SDL_Surface * destructInternalScreen);
+void JE_helpScreen(SDL_Surface * screen, SDL_Surface * destructPrevScreen);
 
 // level generating functions
 void DE_ResetLevel(const struct destruct_config_s * config,
@@ -262,7 +262,7 @@ void DE_ResetLevel(const struct destruct_config_s * config,
                    struct destruct_shot_s * shotRec,
                    struct destruct_explo_s * exploRec,
                    struct destruct_world_s * world,
-                   SDL_Surface * destructTempScreen);
+                   SDL_Surface * destructInternalScreen);
 
 // player functions
 void DE_ResetPlayers(struct destruct_player_s * destruct_player);
@@ -276,6 +276,7 @@ enum de_state_t DE_RunTick(const struct destruct_config_s * config,
                            struct destruct_shot_s * shotRec,
                            struct destruct_explo_s * exploRec,
                            struct destruct_world_s * world,
-                           SDL_Surface * destructTempScreen);
+                           SDL_Surface * destructInternalScreen,
+                           SDL_Surface * destructPrevScreen);
 
 #endif /* DESTRUCT_H */

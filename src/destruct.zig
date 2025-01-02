@@ -30,7 +30,8 @@ destruct_player: [c.MAX_PLAYERS]c.destruct_player_s = undefined,
 world: c.destruct_world_s = undefined,
 shotRec: *c.destruct_shot_s = undefined,
 exploRec: *c.destruct_explo_s = undefined,
-destructTempScreen: *c.SDL_Surface = undefined,
+destructInternalScreen: *c.SDL_Surface = undefined,
+destructPrevScreen: *c.SDL_Surface = undefined,
 
 // Startup
 pub fn JE_destructGame() void {
@@ -59,8 +60,9 @@ pub fn JE_destructGame() void {
     self.destruct_player[c.PLAYER_RIGHT].unit = @alignCast(@ptrCast(c.malloc(@sizeOf(c.destruct_unit_s) * self.config.max_installations).?));
     defer c.free(self.destruct_player[c.PLAYER_RIGHT].unit);
 
-    self.destructTempScreen = c.game_screen;
     self.world.VGAScreen = c.VGAScreen;
+    self.destructInternalScreen = c.game_screen;
+    self.destructPrevScreen = c.VGAScreen2;
 
     c.JE_loadCompShapes(&c.destructSpriteSheet, '~');
     defer c.free_sprite2s(&c.destructSpriteSheet);
@@ -74,7 +76,7 @@ fn JE_destructMain(self: *Destruct) void {
     var curState: c.de_state_t = c.STATE_INIT;
 
     c.JE_loadPic(self.world.VGAScreen, 11, false);
-    c.JE_introScreen();
+    c.JE_introScreen(self.world.VGAScreen, self.destructInternalScreen);
 
     c.DE_ResetPlayers(&self.destruct_player);
 
@@ -82,7 +84,12 @@ fn JE_destructMain(self: *Destruct) void {
     self.destruct_player[c.PLAYER_RIGHT].is_cpu = self.config.ai[c.PLAYER_RIGHT];
 
     while (true) {
-        self.world.destructMode = JE_destructMenu(&self.config);
+        self.world.destructMode = JE_destructMenu(
+            self.world.VGAScreen,
+            self.destructInternalScreen,
+            self.destructPrevScreen,
+            &self.config,
+        );
         if (self.world.destructMode == c.MODE_NONE) {
             break; // User is quitting
         }
@@ -98,7 +105,7 @@ fn JE_destructMain(self: *Destruct) void {
                 self.shotRec,
                 self.exploRec,
                 &self.world,
-                self.destructTempScreen,
+                self.destructInternalScreen,
             );
 
             while (true) {
@@ -108,7 +115,8 @@ fn JE_destructMain(self: *Destruct) void {
                     self.shotRec,
                     self.exploRec,
                     &self.world,
-                    self.destructTempScreen,
+                    self.destructInternalScreen,
+                    self.destructPrevScreen,
                 );
                 if (curState != c.STATE_CONTINUE) {
                     break;
@@ -156,12 +164,16 @@ const MainMenu = struct {
         };
     }
 
-    fn handleKeyPress(self: *MainMenu) bool {
+    fn handleKeyPress(
+        self: *MainMenu,
+        currScreen: *c.SDL_Surface,
+        destructPrevScreen: *c.SDL_Surface,
+    ) bool {
         var selection_made = false;
 
         // See what was pressed
         if (c.keysactive[SDL.SDL_SCANCODE_F1] != 0) {
-            c.JE_helpScreen();
+            c.JE_helpScreen(currScreen, destructPrevScreen);
         }
         if (c.keysactive[SDL.SDL_SCANCODE_ESCAPE] != 0) {
             self.state = Options.quit;
@@ -180,10 +192,10 @@ const MainMenu = struct {
         return selection_made;
     }
 
-    fn draw(self: *const MainMenu) void {
+    fn draw(self: *const MainMenu, currScreen: *c.SDL_Surface) void {
         inline for (0.., std.meta.fields(Options)) |i, f| {
             c.JE_textShade(
-                c.VGAScreen,
+                currScreen,
                 c.JE_fontCenter(MainMenu.getName(@enumFromInt(f.value)).ptr, c.TINY_FONT),
                 @intCast(82 + i * 12),
                 MainMenu.getName(@enumFromInt(f.value)).ptr,
@@ -193,10 +205,10 @@ const MainMenu = struct {
             );
 
             // "press F1 for help" message
-            c.JE_outText(c.VGAScreen, c.JE_fontCenter(&c.miscText[64], c.TINY_FONT), 180, &c.miscText[64], 15, 2);
+            c.JE_outText(currScreen, c.JE_fontCenter(&c.miscText[64], c.TINY_FONT), 180, &c.miscText[64], 15, 2);
 
             // "press F10 to toggle human/cpu" message
-            c.JE_outText(c.VGAScreen, c.JE_fontCenter(&c.miscText[65], c.TINY_FONT), 190, &c.miscText[65], 15, 2);
+            c.JE_outText(currScreen, c.JE_fontCenter(&c.miscText[65], c.TINY_FONT), 190, &c.miscText[65], 15, 2);
         }
     }
 };
@@ -232,12 +244,17 @@ const NewGameMenu = struct {
 
     // state == c.MAX_MODES means return to main menu
     // state == c.MODE_NONE means terminate application
-    fn handleKeyPress(self: *NewGameMenu, config: *const c.destruct_config_s) bool {
+    fn handleKeyPress(
+        self: *NewGameMenu,
+        currScreen: *c.SDL_Surface,
+        destructPrevScreen: *c.SDL_Surface,
+        config: *const c.destruct_config_s,
+    ) bool {
         var selection_made = false;
 
         // See what was pressed
         if (c.keysactive[SDL.SDL_SCANCODE_F1] != 0) {
-            c.JE_helpScreen();
+            c.JE_helpScreen(currScreen, destructPrevScreen);
         }
         if (c.keysactive[SDL.SDL_SCANCODE_ESCAPE] != 0) {
             self.state = c.MAX_MODES; // User is quitting, return failure
@@ -256,13 +273,13 @@ const NewGameMenu = struct {
         return selection_made;
     }
 
-    // Helper function of JE_modeSelect.  Do not use elsewhere.
-    fn draw(self: *const NewGameMenu, config: *const c.destruct_config_s) void {
+    // Helper function of JE_modeSelect. Do not use elsewhere.
+    fn draw(self: *const NewGameMenu, currScreen: *c.SDL_Surface, config: *const c.destruct_config_s) void {
         var i: usize = 0;
 
         for (0..@as(c.de_mode_t, c.DESTRUCT_MODES)) |_| {
             c.JE_textShade(
-                c.VGAScreen,
+                currScreen,
                 c.JE_fontCenter(&c.destructModeName[i], c.TINY_FONT),
                 @intCast(82 + i * 12),
                 &c.destructModeName[i],
@@ -274,7 +291,7 @@ const NewGameMenu = struct {
         }
         if (config.allow_custom == true) {
             c.JE_textShade(
-                c.VGAScreen,
+                currScreen,
                 c.JE_fontCenter("Custom", c.TINY_FONT),
                 @intCast(82 + i * 12),
                 "Custom",
@@ -288,7 +305,7 @@ const NewGameMenu = struct {
         i += 1; // add vertical spacing
 
         c.JE_textShade(
-            c.VGAScreen,
+            currScreen,
             c.JE_fontCenter("Back", c.TINY_FONT),
             @intCast(82 + i * 12),
             "Back",
@@ -298,10 +315,10 @@ const NewGameMenu = struct {
         );
 
         // "press F1 for help" message
-        c.JE_outText(c.VGAScreen, c.JE_fontCenter(&c.miscText[64], c.TINY_FONT), 180, &c.miscText[64], 15, 2);
+        c.JE_outText(currScreen, c.JE_fontCenter(&c.miscText[64], c.TINY_FONT), 180, &c.miscText[64], 15, 2);
 
         // "press F10 to toggle human/cpu" message
-        c.JE_outText(c.VGAScreen, c.JE_fontCenter(&c.miscText[65], c.TINY_FONT), 190, &c.miscText[65], 15, 2);
+        c.JE_outText(currScreen, c.JE_fontCenter(&c.miscText[65], c.TINY_FONT), 190, &c.miscText[65], 15, 2);
     }
 };
 
@@ -360,17 +377,17 @@ const ControllerMenu = struct {
         return selection_made;
     }
 
-    fn draw(self: *const ControllerMenu) void {
+    fn draw(self: *const ControllerMenu, currScreen: *c.SDL_Surface) void {
         _ = self;
 
-        c.JE_clr256(c.VGAScreen);
+        c.JE_clr256(currScreen);
 
         for (0..2) |i| {
-            c.JE_outText(c.VGAScreen, 100, @intCast(5 + i * 90), &c.destructHelp[i * 12 + 0], 2, 4);
-            c.JE_outText(c.VGAScreen, 100, @intCast(15 + i * 90), &c.destructHelp[i * 12 + 1], 2, 1);
+            c.JE_outText(currScreen, 100, @intCast(5 + i * 90), &c.destructHelp[i * 12 + 0], 2, 4);
+            c.JE_outText(currScreen, 100, @intCast(15 + i * 90), &c.destructHelp[i * 12 + 1], 2, 1);
             for (3..12 + 1) |j| {
                 c.JE_outText(
-                    c.VGAScreen,
+                    currScreen,
                     @intCast(((j - 1) % 2) * 160 + 10),
                     @intCast(15 + ((j - 1) / 2) * 12 + i * 90),
                     &c.destructHelp[i * 12 + j - 1],
@@ -379,7 +396,7 @@ const ControllerMenu = struct {
                 );
             }
         }
-        c.JE_outText(c.VGAScreen, 30, 190, &c.destructHelp[24], 3, 4);
+        c.JE_outText(currScreen, 30, 190, &c.destructHelp[24], 3, 4);
 
         c.JE_showVGA();
     }
@@ -395,11 +412,16 @@ const MenuState = struct {
     state: Menus,
     screen_changed: bool,
 
-    fn handleKeyPress(self: *MenuState, config: *const c.destruct_config_s) bool {
+    fn handleKeyPress(
+        self: *MenuState,
+        currScreen: *c.SDL_Surface,
+        destructPrevScreen: *c.SDL_Surface,
+        config: *const c.destruct_config_s,
+    ) bool {
         var terminal = false;
         switch (self.state) {
             Menus.main => |*menu| {
-                const selection_made = menu.handleKeyPress();
+                const selection_made = menu.handleKeyPress(currScreen, destructPrevScreen);
                 if (selection_made) {
                     switch (menu.state) {
                         MainMenu.Options.new_game => self.* = .{ .state = .{ .new_game = .{} }, .screen_changed = true },
@@ -409,7 +431,7 @@ const MenuState = struct {
                 }
             },
             Menus.new_game => |*menu| {
-                const selection_made = menu.handleKeyPress(config);
+                const selection_made = menu.handleKeyPress(currScreen, destructPrevScreen, config);
                 if (selection_made) {
                     switch (menu.state) {
                         c.MAX_MODES => self.* = .{ .state = .{ .main = .{} }, .screen_changed = true },
@@ -430,27 +452,41 @@ const MenuState = struct {
         return terminal;
     }
 
-    fn draw(self: *MenuState, config: *const c.destruct_config_s) void {
+    fn draw(
+        self: *MenuState,
+        currScreen: *c.SDL_Surface,
+        destructInternalScreen: *c.SDL_Surface,
+        config: *const c.destruct_config_s,
+    ) void {
         if (self.screen_changed) {
-            _ = c.memcpy(c.VGAScreen.*.pixels, c.game_screen.*.pixels, @intCast(c.VGAScreen.*.h * c.VGAScreen.*.pitch));
+            _ = c.memcpy(currScreen.*.pixels, destructInternalScreen.*.pixels, @intCast(currScreen.*.h * currScreen.*.pitch));
             self.screen_changed = false;
         }
         switch (self.state) {
-            Menus.main => |*menu| menu.draw(),
-            Menus.new_game => |*menu| menu.draw(config),
-            Menus.controller => |*menu| menu.draw(),
+            Menus.main => |*menu| menu.draw(currScreen),
+            Menus.new_game => |*menu| menu.draw(currScreen, config),
+            Menus.controller => |*menu| menu.draw(currScreen),
         }
     }
 };
 
 ////// JE_destructMenu()
 // The return value is the selected mode, or -1 (MODE_NONE) if the user quits.
-fn JE_destructMenu(config: *const c.destruct_config_s) c.de_mode_t {
-    _ = c.memcpy(c.game_screen.*.pixels, c.VGAScreen.*.pixels, @intCast(c.game_screen.*.h * c.game_screen.*.pitch));
+fn JE_destructMenu(
+    currScreen: *c.SDL_Surface,
+    destructInternalScreen: *c.SDL_Surface,
+    destructPrevScreen: *c.SDL_Surface,
+    config: *const c.destruct_config_s,
+) c.de_mode_t {
+    _ = c.memcpy(
+        destructInternalScreen.*.pixels,
+        currScreen.*.pixels,
+        @intCast(destructInternalScreen.*.h * destructInternalScreen.*.pitch),
+    );
     var menu_state: MenuState = .{ .state = .{ .main = .{} }, .screen_changed = true };
 
     // Draw the menu and fade us in
-    menu_state.draw(config);
+    menu_state.draw(currScreen, destructInternalScreen, config);
     c.JE_showVGA();
     c.fade_palette(&c.colors, 15, 0, 255);
 
@@ -466,8 +502,8 @@ fn JE_destructMenu(config: *const c.destruct_config_s) c.de_mode_t {
             }
         }
 
-        const exit = menu_state.handleKeyPress(config);
-        menu_state.draw(config); // Re-draw the menu every iteration
+        const exit = menu_state.handleKeyPress(currScreen, destructPrevScreen, config);
+        menu_state.draw(currScreen, destructInternalScreen, config); // Re-draw the menu every iteration
 
         c.JE_showVGA();
 
@@ -477,7 +513,11 @@ fn JE_destructMenu(config: *const c.destruct_config_s) c.de_mode_t {
     }
 
     c.fade_black(15);
-    _ = c.memcpy(c.VGAScreen.*.pixels, c.game_screen.*.pixels, @intCast(c.VGAScreen.*.h * c.VGAScreen.*.pitch));
+    _ = c.memcpy(
+        currScreen.*.pixels,
+        destructInternalScreen.*.pixels,
+        @intCast(currScreen.*.h * currScreen.*.pitch),
+    );
     c.JE_showVGA();
 
     return switch (menu_state.state) {

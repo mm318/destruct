@@ -97,15 +97,15 @@ enum de_mapflags_t
 
 /*** Function decs ***/
 // Prep functions
-static void JE_pauseScreen(void);
+static void JE_pauseScreen(SDL_Surface * screen, SDL_Surface * destructPrevScreen);
 
 // level generating functions
 static void JE_generateTerrain(const struct destruct_config_s * config,
                                struct destruct_player_s * destruct_player,
                                struct destruct_world_s * world,
-                               SDL_Surface * destructTempScreen);
+                               SDL_Surface * destructInternalScreen);
 static void DE_generateBaseTerrain(unsigned int, unsigned int *);
-static void DE_drawBaseTerrain(unsigned int *);
+static void DE_drawBaseTerrain(SDL_Surface * screen, unsigned int * baseWorld);
 static void DE_generateUnits(struct destruct_player_s * destruct_player, struct destruct_world_s * world);
 static void DE_generateWalls(const struct destruct_config_s * config,
                              const struct destruct_player_s * destruct_player,
@@ -115,22 +115,24 @@ static unsigned int JE_placementPosition(unsigned int, unsigned int, unsigned in
 
 // drawing functions
 static void JE_aliasDirt(SDL_Surface *);
-static void DE_RunTickDrawCrosshairs(struct destruct_player_s * destruct_player);
-static void DE_RunTickDrawHUD(struct destruct_player_s * destruct_player);
-static void DE_GravityDrawUnit(enum de_player_t, struct destruct_unit_s *);
+static void DE_RunTickDrawCrosshairs(struct destruct_player_s * destruct_player, SDL_Surface * screen);
+static void DE_RunTickDrawHUD(struct destruct_player_s * destruct_player, SDL_Surface * screen);
+static void DE_GravityDrawUnit(enum de_player_t team, struct destruct_unit_s * unit, SDL_Surface * screen);
 static void DE_RunTickAnimate(const struct destruct_config_s * config, struct destruct_player_s * destruct_player);
-static void DE_RunTickDrawWalls(const struct destruct_config_s * config, const struct destruct_world_s * world);
-static void DE_DrawTrails(struct destruct_shot_s *, unsigned int, unsigned int, unsigned int);
-static void JE_tempScreenChecking(const struct destruct_config_s * config, const SDL_Surface * destructTempScreen);
-static void JE_superPixel(const SDL_Surface * destructTempScreen, unsigned int, unsigned int);
-static void JE_pixCool(unsigned int, unsigned int, Uint8);
+static void DE_RunTickDrawWalls(const struct destruct_config_s * config, struct destruct_world_s * world);
+static void DE_DrawTrails(struct destruct_shot_s *, unsigned int, unsigned int, unsigned int, SDL_Surface * screen);
+static void JE_tempScreenChecking(const SDL_Surface * screen,
+                                  SDL_Surface * destructInternalScreen,
+                                  const struct destruct_config_s * config);
+static void JE_superPixel(const SDL_Surface * destructInternalScreen, unsigned int, unsigned int);
+static void JE_pixCool(unsigned int, unsigned int, Uint8, SDL_Surface * screen);
 
 // player functions
 static void DE_RunTickGetInput(struct destruct_player_s * destruct_player);
 static void DE_ProcessInput(const struct destruct_config_s * config,
                             struct destruct_player_s * destruct_player,
                             struct destruct_shot_s * shotRec,
-                            const SDL_Surface * destructTempScreen);
+                            const SDL_Surface * destructInternalScreen);
 static void DE_ResetAI(const struct destruct_config_s * config,
                        struct destruct_player_s * destruct_player,
                        const struct destruct_world_s * world);
@@ -149,8 +151,8 @@ static void DE_RunMagnet(const struct destruct_config_s * config,
                          struct destruct_shot_s * shotRec,
                          enum de_player_t curPlayer,
                          struct destruct_unit_s * magnet);
-static void DE_GravityFlyUnit(const SDL_Surface * destructTempScreen, struct destruct_unit_s *);
-static void DE_GravityLowerUnit(const SDL_Surface * destructTempScreen, struct destruct_unit_s *);
+static void DE_GravityFlyUnit(const SDL_Surface * destructInternalScreen, struct destruct_unit_s *);
+static void DE_GravityLowerUnit(const SDL_Surface * destructInternalScreen, struct destruct_unit_s *);
 static void DE_DestroyUnit(const struct destruct_config_s * config,
                            struct destruct_player_s * destruct_player,
                            struct destruct_explo_s * exploRec,
@@ -167,11 +169,11 @@ static void DE_RunTickShots(const struct destruct_config_s * config,
                             struct destruct_shot_s * shotRec,
                             struct destruct_explo_s * exploRec,
                             struct destruct_world_s * world,
-                            const SDL_Surface * destructTempScreen);
+                            const SDL_Surface * destructInternalScreen);
 static void DE_RunTickExplosions(const struct destruct_config_s * config,
                                  struct destruct_player_s * destruct_player,
                                  struct destruct_explo_s * exploRec,
-                                 const SDL_Surface * destructTempScreen);
+                                 const SDL_Surface * destructInternalScreen);
 static void DE_TestExplosionCollision(const struct destruct_config_s * config,
                                       struct destruct_player_s * destruct_player,
                                       struct destruct_explo_s * exploRec,
@@ -193,9 +195,10 @@ static void DE_MakeShot(const struct destruct_config_s * config,
 static void DE_RunTickCycleDeadUnits(const struct destruct_config_s * config, struct destruct_player_s * destruct_player);
 static void DE_RunTickGravity(const struct destruct_config_s * config,
                               struct destruct_player_s * destruct_player,
-                              const SDL_Surface * destructTempScreen);
+                              const SDL_Surface * destructInternalScreen,
+                              SDL_Surface * screen);
 static bool DE_RunTickCheckEndgame(struct destruct_player_s * destruct_player, struct destruct_world_s * world);
-static bool JE_stabilityCheck(const SDL_Surface * destructTempScreen, unsigned int, unsigned int);
+static bool JE_stabilityCheck(const SDL_Surface * destructInternalScreen, unsigned int, unsigned int);
 
 // sound
 static void DE_RunTickPlaySounds(void);
@@ -460,12 +463,12 @@ void load_destruct_config(Config *config_, struct destruct_config_s * config)
     }
 }
 
-void JE_introScreen(void)
+void JE_introScreen(SDL_Surface * screen, SDL_Surface * destructInternalScreen)
 {
-    memcpy(game_screen->pixels, VGAScreen->pixels, game_screen->h * game_screen->pitch);
-    JE_outText(VGAScreen, JE_fontCenter(specialName[SA_DESTRUCT - 1], TINY_FONT), 90, specialName[SA_DESTRUCT - 1], 12, 5);
-    JE_outText(VGAScreen, JE_fontCenter(miscText[64], TINY_FONT), 180, miscText[64], 15, 2);
-    JE_outText(VGAScreen, JE_fontCenter(miscText[65], TINY_FONT), 190, miscText[65], 15, 2);
+    memcpy(destructInternalScreen->pixels, screen->pixels, destructInternalScreen->h * destructInternalScreen->pitch);
+    JE_outText(screen, JE_fontCenter(specialName[SA_DESTRUCT - 1], TINY_FONT), 90, specialName[SA_DESTRUCT - 1], 12, 5);
+    JE_outText(screen, JE_fontCenter(miscText[64], TINY_FONT), 180, miscText[64], 15, 2);
+    JE_outText(screen, JE_fontCenter(miscText[65], TINY_FONT), 190, miscText[65], 15, 2);
     JE_showVGA();
     fade_palette(colors, 15, 0, 255);
 
@@ -477,14 +480,14 @@ void JE_introScreen(void)
     }
 
     fade_black(15);
-    memcpy(VGAScreen->pixels, game_screen->pixels, VGAScreen->h * VGAScreen->pitch);
+    memcpy(screen->pixels, destructInternalScreen->pixels, screen->h * screen->pitch);
     JE_showVGA();
 }
 
 static void JE_generateTerrain(const struct destruct_config_s * config,
                                struct destruct_player_s * destruct_player,
                                struct destruct_world_s * world,
-                               SDL_Surface * destructTempScreen)
+                               SDL_Surface * destructInternalScreen)
 {
     /* The unique modifiers:
         Altered generation (really tall)
@@ -522,7 +525,7 @@ static void JE_generateTerrain(const struct destruct_config_s * config,
     DE_generateBaseTerrain(world->mapFlags, world->baseMap);
     DE_generateUnits(destruct_player, world);
     DE_generateWalls(config, destruct_player, world);
-    DE_drawBaseTerrain(world->baseMap);
+    DE_drawBaseTerrain(world->VGAScreen, world->baseMap);
 
     if (world->mapFlags & MAP_RINGS)
         DE_generateRings(world->VGAScreen, PIXEL_DIRT);
@@ -532,7 +535,7 @@ static void JE_generateTerrain(const struct destruct_config_s * config,
     JE_aliasDirt(world->VGAScreen);
     JE_showVGA();
 
-    memcpy(destructTempScreen->pixels, world->VGAScreen->pixels, destructTempScreen->pitch * destructTempScreen->h);
+    memcpy(destructInternalScreen->pixels, world->VGAScreen->pixels, destructInternalScreen->pitch * destructInternalScreen->h);
 }
 
 static void DE_generateBaseTerrain(unsigned int mapFlags, unsigned int * baseWorld)
@@ -578,13 +581,13 @@ static void DE_generateBaseTerrain(unsigned int mapFlags, unsigned int * baseWor
     /* The base world has been created. */
 }
 
-static void DE_drawBaseTerrain(unsigned int * baseWorld)
+static void DE_drawBaseTerrain(SDL_Surface * screen, unsigned int * baseWorld)
 {
     unsigned int i;
 
     for (i = 1; i <= 318; i++)
     {
-        JE_rectangle(VGAScreen, i, baseWorld[i], i, 199, PIXEL_DIRT);
+        JE_rectangle(screen, i, baseWorld[i], i, 199, PIXEL_DIRT);
     }
 }
 
@@ -822,14 +825,14 @@ static unsigned int JE_placementPosition(unsigned int passed_x, unsigned int wid
     return new_y;
 }
 
-static bool JE_stabilityCheck(const SDL_Surface * destructTempScreen, unsigned int x, unsigned int y)
+static bool JE_stabilityCheck(const SDL_Surface * destructInternalScreen, unsigned int x, unsigned int y)
 {
     unsigned int i, numDirtPixels;
     Uint8 * s;
 
     numDirtPixels = 0;
-    s = destructTempScreen->pixels;
-    s += x + (y * destructTempScreen->pitch) - 1;
+    s = destructInternalScreen->pixels;
+    s += x + (y * destructInternalScreen->pitch) - 1;
 
     /* Check the 12 pixels on the bottom border of our object */
     for (i = 0; i < 12; i++)
@@ -844,17 +847,19 @@ static bool JE_stabilityCheck(const SDL_Surface * destructTempScreen, unsigned i
     return (numDirtPixels < 10);
 }
 
-static void JE_tempScreenChecking(const struct destruct_config_s * config, const SDL_Surface * destructTempScreen) /*and copy to vgascreen*/
+static void JE_tempScreenChecking(const SDL_Surface * screen,
+                                  SDL_Surface * destructInternalScreen,
+                                  const struct destruct_config_s * config) /* and copy to vgascreen */
 {
-    Uint8 *s = VGAScreen->pixels;
-    s += 12 * VGAScreen->pitch;
+    Uint8 *s = screen->pixels;
+    s += 12 * screen->pitch;
 
-    Uint8 *temps = destructTempScreen->pixels;
-    temps += 12 * destructTempScreen->pitch;
+    Uint8 *temps = destructInternalScreen->pixels;
+    temps += 12 * destructInternalScreen->pitch;
 
-    for (int y = 12; y < VGAScreen->h; y++)
+    for (int y = 12; y < screen->h; y++)
     {
-        for (int x = 0; x < VGAScreen->pitch; x++)
+        for (int x = 0; x < screen->pitch; x++)
         {
             // This block is what fades out explosions. The palette from 241
             // to 255 fades from a very dark red to a very bright yellow.
@@ -870,7 +875,7 @@ static void JE_tempScreenChecking(const struct destruct_config_s * config, const
             // and it's fun.
             if (config->alwaysalias == true && *temps == PIXEL_BLACK) 
             {
-                *temps = aliasDirtPixel(VGAScreen, x, y, temps);
+                *temps = aliasDirtPixel(screen, x, y, temps);
             }
 
             /* This is copying from our temp screen to VGAScreen */
@@ -942,7 +947,7 @@ static void JE_eSound(unsigned int sound)
     soundQueue[exploSoundChannel] = sound;
 }
 
-static void JE_superPixel(const SDL_Surface * destructTempScreen, unsigned int tempPosX, unsigned int tempPosY)
+static void JE_superPixel(const SDL_Surface * destructInternalScreen, unsigned int tempPosX, unsigned int tempPosY)
 {
     const unsigned int starPattern[5][5] =
     {
@@ -965,11 +970,11 @@ static void JE_superPixel(const SDL_Surface * destructTempScreen, unsigned int t
     unsigned int rowLen;
     Uint8 *s;
 
-    maxX = destructTempScreen->pitch;
-    maxY = destructTempScreen->h;
+    maxX = destructInternalScreen->pitch;
+    maxY = destructInternalScreen->h;
 
-    rowLen = destructTempScreen->pitch;
-    s = destructTempScreen->pixels;
+    rowLen = destructInternalScreen->pitch;
+    s = destructInternalScreen->pixels;
     s += (rowLen * (tempPosY - 2)) + (tempPosX - 2);
 
     for (y = 0; y < 5; y++, s += rowLen - 5)
@@ -1003,23 +1008,23 @@ static void JE_superPixel(const SDL_Surface * destructTempScreen, unsigned int t
     }
 }
 
-void JE_helpScreen(void)
+void JE_helpScreen(SDL_Surface * screen, SDL_Surface * destructPrevScreen)
 {
     unsigned int i, j;
 
     // JE_getVGA();  didn't do anything anyway?
     fade_black(15);
-    memcpy(VGAScreen2->pixels, VGAScreen->pixels, VGAScreen2->h * VGAScreen2->pitch);
-    JE_clr256(VGAScreen);
+    memcpy(destructPrevScreen->pixels, screen->pixels, destructPrevScreen->h * destructPrevScreen->pitch);
+    JE_clr256(screen);
 
     for (i = 0; i < 2; i++)
     {
-        JE_outText(VGAScreen, 100,  5 + i * 90, destructHelp[i * 12 + 0], 2, 4);
-        JE_outText(VGAScreen, 100, 15 + i * 90, destructHelp[i * 12 + 1], 2, 1);
+        JE_outText(screen, 100,  5 + i * 90, destructHelp[i * 12 + 0], 2, 4);
+        JE_outText(screen, 100, 15 + i * 90, destructHelp[i * 12 + 1], 2, 1);
         for (j = 3; j <= 12; j++)
-            JE_outText(VGAScreen, ((j - 1) % 2) * 160 + 10, 15 + ((j - 1) / 2) * 12 + i * 90, destructHelp[i * 12 + j-1], 1, 3);
+            JE_outText(screen, ((j - 1) % 2) * 160 + 10, 15 + ((j - 1) / 2) * 12 + i * 90, destructHelp[i * 12 + j-1], 1, 3);
     }
-    JE_outText(VGAScreen, 30, 190, destructHelp[24], 3, 4);
+    JE_outText(screen, 30, 190, destructHelp[24], 3, 4);
     JE_showVGA();
     fade_palette(colors, 15, 0, 255);
 
@@ -1030,18 +1035,18 @@ void JE_helpScreen(void)
     } while (!newkey);
 
     fade_black(15);
-    memcpy(VGAScreen->pixels, VGAScreen2->pixels, VGAScreen->h * VGAScreen->pitch);
+    memcpy(screen->pixels, destructPrevScreen->pixels, screen->h * screen->pitch);
     JE_showVGA();
     fade_palette(colors, 15, 0, 255);
 }
 
-static void JE_pauseScreen(void)
+static void JE_pauseScreen(SDL_Surface * screen, SDL_Surface * destructPrevScreen)
 {
     set_volume(tyrMusicVolume / 2, fxVolume);
 
     /* Save our current screen/game world.  We don't want to screw it up while paused. */
-    memcpy(VGAScreen2->pixels, VGAScreen->pixels, VGAScreen2->h * VGAScreen2->pitch);
-    JE_outText(VGAScreen, JE_fontCenter(miscText[22], TINY_FONT), 90, miscText[22], 12, 5);
+    memcpy(destructPrevScreen->pixels, screen->pixels, destructPrevScreen->h * destructPrevScreen->pitch);
+    JE_outText(screen, JE_fontCenter(miscText[22], TINY_FONT), 90, miscText[22], 12, 5);
     JE_showVGA();
 
     do  /* wait until user hits a key */
@@ -1051,7 +1056,7 @@ static void JE_pauseScreen(void)
     } while (!newkey);
 
     /* Restore current screen & volume*/
-    memcpy(VGAScreen->pixels, VGAScreen2->pixels, VGAScreen->h * VGAScreen->pitch);
+    memcpy(screen->pixels, destructPrevScreen->pixels, screen->h * screen->pitch);
     JE_showVGA();
 
     set_volume(tyrMusicVolume, fxVolume);
@@ -1114,13 +1119,13 @@ void DE_ResetLevel(const struct destruct_config_s * config,
                    struct destruct_shot_s * shotRec,
                    struct destruct_explo_s * exploRec,
                    struct destruct_world_s * world,
-                   SDL_Surface * destructTempScreen)
+                   SDL_Surface * destructInternalScreen)
 {
     /* Okay, let's prep the arena */
 
     DE_ResetWeapons(config, shotRec, exploRec);
 
-    JE_generateTerrain(config, destruct_player, world, destructTempScreen);
+    JE_generateTerrain(config, destruct_player, world, destructInternalScreen);
     DE_ResetAI(config, destruct_player, world);
 }
 
@@ -1179,26 +1184,27 @@ enum de_state_t DE_RunTick(const struct destruct_config_s * config,
                            struct destruct_shot_s * shotRec,
                            struct destruct_explo_s * exploRec,
                            struct destruct_world_s * world,
-                           SDL_Surface * destructTempScreen)
+                           SDL_Surface * destructInternalScreen,
+                           SDL_Surface * destructPrevScreen)
 {
     static unsigned int endDelay;
 
     setDelay(1);
 
     memset(soundQueue, 0, sizeof(soundQueue));
-    JE_tempScreenChecking(config, destructTempScreen);
+    JE_tempScreenChecking(world->VGAScreen, destructInternalScreen, config);
 
     DE_ResetActions(destruct_player);
     DE_RunTickCycleDeadUnits(config, destruct_player);
 
-    DE_RunTickGravity(config, destruct_player, destructTempScreen);
+    DE_RunTickGravity(config, destruct_player, destructInternalScreen, world->VGAScreen);
     DE_RunTickAnimate(config, destruct_player);
     DE_RunTickDrawWalls(config, world);
-    DE_RunTickExplosions(config, destruct_player, exploRec, destructTempScreen);
-    DE_RunTickShots(config, destruct_player, shotRec, exploRec, world, destructTempScreen);
+    DE_RunTickExplosions(config, destruct_player, exploRec, destructInternalScreen);
+    DE_RunTickShots(config, destruct_player, shotRec, exploRec, world, destructInternalScreen);
     DE_RunTickAI(config, destruct_player);
-    DE_RunTickDrawCrosshairs(destruct_player);
-    DE_RunTickDrawHUD(destruct_player);
+    DE_RunTickDrawCrosshairs(destruct_player, world->VGAScreen);
+    DE_RunTickDrawHUD(destruct_player, world->VGAScreen);
     JE_showVGA();
 
     if (destructFirstTime)
@@ -1209,7 +1215,7 @@ enum de_state_t DE_RunTick(const struct destruct_config_s * config,
     }
 
     DE_RunTickGetInput(destruct_player);
-    DE_ProcessInput(config, destruct_player, shotRec, destructTempScreen);
+    DE_ProcessInput(config, destruct_player, shotRec, destructInternalScreen);
 
     if (endDelay > 0)
     {
@@ -1236,13 +1242,13 @@ enum de_state_t DE_RunTick(const struct destruct_config_s * config,
     }
     if (keysactive[SDL_SCANCODE_P])
     {
-        JE_pauseScreen();
+        JE_pauseScreen(world->VGAScreen, destructPrevScreen);
         keysactive[lastkey_scan] = false;
     }
 
     if (keysactive[SDL_SCANCODE_F1])
     {
-        JE_helpScreen();
+        JE_helpScreen(world->VGAScreen, destructPrevScreen);
         keysactive[lastkey_scan] = false;
     }
 
@@ -1297,7 +1303,8 @@ static void DE_RunTickCycleDeadUnits(const struct destruct_config_s * config, st
 
 static void DE_RunTickGravity(const struct destruct_config_s * config,
                               struct destruct_player_s * destruct_player,
-                              const SDL_Surface * destructTempScreen)
+                              const SDL_Surface * destructInternalScreen,
+                              SDL_Surface * screen)
 {
     unsigned int i, j;
     struct destruct_unit_s * unit;
@@ -1319,22 +1326,22 @@ static void DE_RunTickGravity(const struct destruct_config_s * config,
             case UNIT_JUMPER:
                 if (unit->isYInAir == true) /* unit is falling down, at least in theory */
                 {
-                    DE_GravityFlyUnit(destructTempScreen, unit);
+                    DE_GravityFlyUnit(destructInternalScreen, unit);
                     break;
                 }
                 /* else treat as a normal unit */
                 /* fall through */
             default:
-                DE_GravityLowerUnit(destructTempScreen, unit);
+                DE_GravityLowerUnit(destructInternalScreen, unit);
             }
 
             /* Draw the unit. */
-            DE_GravityDrawUnit(i, unit);
+            DE_GravityDrawUnit(i, unit, screen);
         }
     }
 }
 
-static void DE_GravityDrawUnit(enum de_player_t team, struct destruct_unit_s * unit)
+static void DE_GravityDrawUnit(enum de_player_t team, struct destruct_unit_s * unit, SDL_Surface * screen)
 {
     unsigned int anim_index;
 
@@ -1352,10 +1359,10 @@ static void DE_GravityDrawUnit(enum de_player_t team, struct destruct_unit_s * u
         anim_index += floorf(unit->angle * 9.99f / M_PI);
     }
 
-    blit_sprite2(VGAScreen, unit->unitX, roundf(unit->unitY) - 13, destructSpriteSheet, anim_index);
+    blit_sprite2(screen, unit->unitX, roundf(unit->unitY) - 13, destructSpriteSheet, anim_index);
 }
 
-static void DE_GravityLowerUnit(const SDL_Surface * destructTempScreen, struct destruct_unit_s * unit)
+static void DE_GravityLowerUnit(const SDL_Surface * destructInternalScreen, struct destruct_unit_s * unit)
 {
     /* units fall at a constant speed.  The heli is an odd case though;
      * we simply give it a downward velocity, but due to a buggy implementation
@@ -1367,7 +1374,7 @@ static void DE_GravityLowerUnit(const SDL_Surface * destructTempScreen, struct d
      */
     if (unit->unitY < 199)  /* checking takes time, don't check if it's at the bottom */
     {
-        if (JE_stabilityCheck(destructTempScreen, unit->unitX, roundf(unit->unitY)))
+        if (JE_stabilityCheck(destructInternalScreen, unit->unitX, roundf(unit->unitY)))
         {
             switch (unit->unitType)
             {
@@ -1386,7 +1393,7 @@ static void DE_GravityLowerUnit(const SDL_Surface * destructTempScreen, struct d
     }
 }
 
-static void DE_GravityFlyUnit(const SDL_Surface * destructTempScreen, struct destruct_unit_s * unit)
+static void DE_GravityFlyUnit(const SDL_Surface * destructInternalScreen, struct destruct_unit_s * unit)
 {
     if (unit->unitY + unit->unitYMov > 199) /* would hit bottom of screen */
     {
@@ -1409,7 +1416,7 @@ static void DE_GravityFlyUnit(const SDL_Surface * destructTempScreen, struct des
     else
         unit->unitYMov += 0.03f;
 
-    if (!JE_stabilityCheck(destructTempScreen, unit->unitX, roundf(unit->unitY)))
+    if (!JE_stabilityCheck(destructInternalScreen, unit->unitX, roundf(unit->unitY)))
     {
         unit->unitYMov = 0;
         unit->isYInAir = false;
@@ -1439,7 +1446,7 @@ static void DE_RunTickAnimate(const struct destruct_config_s * config, struct de
     }
 }
 
-static void DE_RunTickDrawWalls(const struct destruct_config_s * config, const struct destruct_world_s * world)
+static void DE_RunTickDrawWalls(const struct destruct_config_s * config, struct destruct_world_s * world)
 {
     unsigned int i;
 
@@ -1447,7 +1454,7 @@ static void DE_RunTickDrawWalls(const struct destruct_config_s * config, const s
     {
         if (world->mapWalls[i].wallExist)
         {
-            blit_sprite2(VGAScreen, world->mapWalls[i].wallX, world->mapWalls[i].wallY, destructSpriteSheet, 42);
+            blit_sprite2(world->VGAScreen, world->mapWalls[i].wallX, world->mapWalls[i].wallY, destructSpriteSheet, 42);
         }
     }
 }
@@ -1455,7 +1462,7 @@ static void DE_RunTickDrawWalls(const struct destruct_config_s * config, const s
 static void DE_RunTickExplosions(const struct destruct_config_s * config,
                                  struct destruct_player_s * destruct_player,
                                  struct destruct_explo_s * exploRec,
-                                 const SDL_Surface * destructTempScreen)
+                                 const SDL_Surface * destructInternalScreen)
 {
     unsigned int i, j;
     int tempPosX, tempPosY;
@@ -1494,11 +1501,11 @@ static void DE_RunTickExplosions(const struct destruct_config_s * config,
             switch (exploRec[i].exploType)
             {
                 case EXPL_DIRT:
-                    ((Uint8 *)destructTempScreen->pixels)[tempPosX + tempPosY * destructTempScreen->pitch] = PIXEL_DIRT;
+                    ((Uint8 *)destructInternalScreen->pixels)[tempPosX + tempPosY * destructInternalScreen->pitch] = PIXEL_DIRT;
                     break;
 
                 case EXPL_NORMAL:
-                    JE_superPixel(destructTempScreen, tempPosX, tempPosY);
+                    JE_superPixel(destructInternalScreen, tempPosX, tempPosY);
                     DE_TestExplosionCollision(config, destruct_player, exploRec, tempPosX, tempPosY);
                     break;
 
@@ -1572,7 +1579,7 @@ static void DE_RunTickShots(const struct destruct_config_s * config,
                             struct destruct_shot_s * shotRec,
                             struct destruct_explo_s * exploRec,
                             struct destruct_world_s * world,
-                            const SDL_Surface * destructTempScreen)
+                            const SDL_Surface * destructInternalScreen)
 {
     unsigned int i, j, k;
     unsigned int tempTrails;
@@ -1652,7 +1659,7 @@ static void DE_RunTickShots(const struct destruct_config_s * config,
         }
 
         tempTrails = (shotColor[shotRec[i].shottype] << 4) - 3;
-        JE_pixCool(tempPosX, tempPosY, tempTrails);
+        JE_pixCool(tempPosX, tempPosY, tempTrails, world->VGAScreen);
 
         /*Draw the shot trail (if applicable) */
         switch (shotTrail[shotRec[i].shottype])
@@ -1660,10 +1667,10 @@ static void DE_RunTickShots(const struct destruct_config_s * config,
         case TRAILS_NONE:
             break;
         case TRAILS_NORMAL:
-            DE_DrawTrails(&(shotRec[i]), 2, 4, tempTrails - 3);
+            DE_DrawTrails(&(shotRec[i]), 2, 4, tempTrails - 3, world->VGAScreen);
             break;
         case TRAILS_FULL:
-            DE_DrawTrails(&(shotRec[i]), 4, 3, tempTrails - 1);
+            DE_DrawTrails(&(shotRec[i]), 4, 3, tempTrails - 1, world->VGAScreen);
             break;
         }
 
@@ -1706,7 +1713,7 @@ static void DE_RunTickShots(const struct destruct_config_s * config,
         }
 
         /* Our last collision check, at least for now.  We hit dirt. */
-        if ((((Uint8 *)destructTempScreen->pixels)[tempPosX + tempPosY * destructTempScreen->pitch]) == PIXEL_DIRT)
+        if ((((Uint8 *)destructInternalScreen->pixels)[tempPosX + tempPosY * destructInternalScreen->pitch]) == PIXEL_DIRT)
         {
             shotRec[i].isAvailable = true;
             JE_makeExplosion(config, exploRec, tempPosX, tempPosY, shotRec[i].shottype);
@@ -1715,7 +1722,11 @@ static void DE_RunTickShots(const struct destruct_config_s * config,
     }
 }
 
-static void DE_DrawTrails(struct destruct_shot_s * shot, unsigned int count, unsigned int decay, unsigned int startColor)
+static void DE_DrawTrails(struct destruct_shot_s * shot,
+                          unsigned int count,
+                          unsigned int decay,
+                          unsigned int startColor,
+                          SDL_Surface * screen)
 {
     int i;
 
@@ -1723,7 +1734,7 @@ static void DE_DrawTrails(struct destruct_shot_s * shot, unsigned int count, uns
     {
         if (shot->trailc[i] > 0 && shot->traily[i] > 12) /* If it exists and if it's not out of bounds, draw it. */
         {
-            JE_pixCool(shot->trailx[i], shot->traily[i], shot->trailc[i]);
+            JE_pixCool(shot->trailx[i], shot->traily[i], shot->trailc[i], screen);
         }
 
         if (i == 0) /* The first trail we create. */
@@ -1941,7 +1952,7 @@ static void DE_RunTickAI(const struct destruct_config_s * config, struct destruc
     }
 }
 
-static void DE_RunTickDrawCrosshairs(struct destruct_player_s * destruct_player)
+static void DE_RunTickDrawCrosshairs(struct destruct_player_s * destruct_player, SDL_Surface * screen)
 {
     unsigned int i;
     int tempPosX, tempPosY;
@@ -1975,20 +1986,20 @@ static void DE_RunTickDrawCrosshairs(struct destruct_player_s * destruct_player)
                 if (tempPosY > 13)
                 {
                     /* Top pixel */
-                    JE_pix(VGAScreen, tempPosX,     tempPosY - 2,  3);
+                    JE_pix(screen, tempPosX,     tempPosY - 2,  3);
                 }
                 /* Middle three pixels */
-                JE_pix(VGAScreen, tempPosX + 3, tempPosY,      3);
-                JE_pix(VGAScreen, tempPosX,     tempPosY,     14);
-                JE_pix(VGAScreen, tempPosX - 3, tempPosY,      3);
+                JE_pix(screen, tempPosX + 3, tempPosY,      3);
+                JE_pix(screen, tempPosX,     tempPosY,     14);
+                JE_pix(screen, tempPosX - 3, tempPosY,      3);
             }
             /* Bottom pixel */
-            JE_pix(VGAScreen, tempPosX,     tempPosY + 2,  3);
+            JE_pix(screen, tempPosX,     tempPosY + 2,  3);
         }
     }
 }
 
-static void DE_RunTickDrawHUD(struct destruct_player_s * destruct_player)
+static void DE_RunTickDrawHUD(struct destruct_player_s * destruct_player, SDL_Surface * screen)
 {
     unsigned int i;
     unsigned int startX;
@@ -2000,20 +2011,20 @@ static void DE_RunTickDrawHUD(struct destruct_player_s * destruct_player)
         curUnit = &(destruct_player[i].unit[destruct_player[i].unitSelected]);
         startX = ((i == PLAYER_LEFT) ? 0 : vga_width - 150);
 
-        fill_rectangle_xy(VGAScreen, startX +  5, 3, startX +  14, 8, 241);
-        JE_rectangle(VGAScreen, startX +  4, 2, startX +  15, 9, 242);
-        JE_rectangle(VGAScreen, startX +  3, 1, startX +  16, 10, 240);
-        fill_rectangle_xy(VGAScreen, startX + 18, 3, startX + 140, 8, 241);
-        JE_rectangle(VGAScreen, startX + 17, 2, startX + 143, 9, 242);
-        JE_rectangle(VGAScreen, startX + 16, 1, startX + 144, 10, 240);
+        fill_rectangle_xy(screen, startX +  5, 3, startX +  14, 8, 241);
+        JE_rectangle(screen, startX +  4, 2, startX +  15, 9, 242);
+        JE_rectangle(screen, startX +  3, 1, startX +  16, 10, 240);
+        fill_rectangle_xy(screen, startX + 18, 3, startX + 140, 8, 241);
+        JE_rectangle(screen, startX + 17, 2, startX + 143, 9, 242);
+        JE_rectangle(screen, startX + 16, 1, startX + 144, 10, 240);
 
-        blit_sprite2(VGAScreen, startX +  4, 0, destructSpriteSheet, 191 + curUnit->shotType);
+        blit_sprite2(screen, startX +  4, 0, destructSpriteSheet, 191 + curUnit->shotType);
 
-        JE_outText   (VGAScreen, startX + 20, 3, weaponNames[curUnit->shotType], 15, 2);
+        JE_outText   (screen, startX + 20, 3, weaponNames[curUnit->shotType], 15, 2);
         sprintf      (tempstr, "dmg~%d~", curUnit->health);
-        JE_outText   (VGAScreen, startX + 75, 3, tempstr, 15, 0);
+        JE_outText   (screen, startX + 75, 3, tempstr, 15, 0);
         sprintf      (tempstr, "pts~%d~", destruct_player[i].score);
-        JE_outText   (VGAScreen, startX + 110, 3, tempstr, 15, 0);
+        JE_outText   (screen, startX + 110, 3, tempstr, 15, 0);
     }
 }
 
@@ -2060,7 +2071,7 @@ static void DE_RunTickGetInput(struct destruct_player_s * destruct_player)
 static void DE_ProcessInput(const struct destruct_config_s * config,
                             struct destruct_player_s * destruct_player,
                             struct destruct_shot_s * shotRec,
-                            const SDL_Surface * destructTempScreen)
+                            const SDL_Surface * destructInternalScreen)
 {
     int direction;
 
@@ -2096,23 +2107,23 @@ static void DE_ProcessInput(const struct destruct_config_s * config,
         {
             if (destruct_player[player_index].moves.actions[MOVE_LEFT] == true && curUnit->unitX > 5)
             {
-                if (JE_stabilityCheck(destructTempScreen, curUnit->unitX - 5, roundf(curUnit->unitY)))
+                if (JE_stabilityCheck(destructInternalScreen, curUnit->unitX - 5, roundf(curUnit->unitY)))
                 {
                     if (curUnit->lastMove > -5)
                         curUnit->lastMove--;
                     curUnit->unitX--;
-                    if (JE_stabilityCheck(destructTempScreen, curUnit->unitX, roundf(curUnit->unitY)))
+                    if (JE_stabilityCheck(destructInternalScreen, curUnit->unitX, roundf(curUnit->unitY)))
                         curUnit->isYInAir = true;
                 }
             }
             if (destruct_player[player_index].moves.actions[MOVE_RIGHT] == true && curUnit->unitX < 305)
             {
-                if (JE_stabilityCheck(destructTempScreen, curUnit->unitX + 5, roundf(curUnit->unitY)))
+                if (JE_stabilityCheck(destructInternalScreen, curUnit->unitX + 5, roundf(curUnit->unitY)))
                 {
                     if (curUnit->lastMove < 5)
                         curUnit->lastMove++;
                     curUnit->unitX++;
-                    if (JE_stabilityCheck(destructTempScreen, curUnit->unitX, roundf(curUnit->unitY)))
+                    if (JE_stabilityCheck(destructInternalScreen, curUnit->unitX, roundf(curUnit->unitY)))
                         curUnit->isYInAir = true;
                 }
             }
@@ -2451,11 +2462,11 @@ static void DE_RunTickPlaySounds(void)
     }
 }
 
-static void JE_pixCool(unsigned int x, unsigned int y, Uint8 c)
+static void JE_pixCool(unsigned int x, unsigned int y, Uint8 c, SDL_Surface * screen)
 {
-    JE_pix(VGAScreen, x, y, c);
-    JE_pix(VGAScreen, x - 1, y, c - 2);
-    JE_pix(VGAScreen, x + 1, y, c - 2);
-    JE_pix(VGAScreen, x, y - 1, c - 2);
-    JE_pix(VGAScreen, x, y + 1, c - 2);
+    JE_pix(screen, x, y, c);
+    JE_pix(screen, x - 1, y, c - 2);
+    JE_pix(screen, x + 1, y, c - 2);
+    JE_pix(screen, x, y - 1, c - 2);
+    JE_pix(screen, x, y + 1, c - 2);
 }
