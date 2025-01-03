@@ -281,7 +281,7 @@ const NewGameMenu = struct {
             c.JE_textShade(
                 currScreen,
                 c.JE_fontCenter(&c.destructModeName[i], c.TINY_FONT),
-                @intCast(82 + i * 12),
+                @intCast(58 + i * 12),
                 &c.destructModeName[i],
                 12,
                 @intCast(@intFromBool(self.state == i) * @as(c_int, 4)),
@@ -293,7 +293,7 @@ const NewGameMenu = struct {
             c.JE_textShade(
                 currScreen,
                 c.JE_fontCenter("Custom", c.TINY_FONT),
-                @intCast(82 + i * 12),
+                @intCast(58 + i * 12),
                 "Custom",
                 12,
                 @intCast(@intFromBool(self.state == i) * @as(c_int, 4)),
@@ -307,7 +307,7 @@ const NewGameMenu = struct {
         c.JE_textShade(
             currScreen,
             c.JE_fontCenter("Back", c.TINY_FONT),
-            @intCast(82 + i * 12),
+            @intCast(58 + i * 12),
             "Back",
             12,
             @intCast(@intFromBool(self.state == c.MAX_MODES) * @as(c_int, 4)),
@@ -323,20 +323,36 @@ const NewGameMenu = struct {
 };
 
 const ControllerMenu = struct {
-    key_state: c.de_keys_t = c.KEY_LEFT,
+    key_state: c.de_keys_t = c.KEY_FIRE,
     player_state: c.de_player_t = c.PLAYER_LEFT,
 
     fn up(option: c.de_keys_t) c.de_keys_t {
         return switch (option) {
-            0 => c.MAX_KEY,
-            else => option - 1,
+            c.KEY_LEFT => c.KEY_DOWN,
+            c.KEY_RIGHT => c.KEY_LEFT,
+            c.KEY_UP => c.KEY_CHANGE,
+            c.KEY_DOWN => c.KEY_UP,
+            c.KEY_CHANGE => c.KEY_CYDN,
+            c.KEY_FIRE => c.MAX_KEY,
+            c.KEY_CYUP => c.KEY_FIRE,
+            c.KEY_CYDN => c.KEY_CYUP,
+            c.MAX_KEY => c.KEY_RIGHT,
+            else => unreachable,
         };
     }
 
     fn down(option: c.de_keys_t) c.de_keys_t {
         return switch (option) {
-            c.MAX_KEY => 0,
-            else => option + 1,
+            c.KEY_LEFT => c.KEY_RIGHT,
+            c.KEY_RIGHT => c.MAX_KEY,
+            c.KEY_UP => c.KEY_DOWN,
+            c.KEY_DOWN => c.KEY_LEFT,
+            c.KEY_CHANGE => c.KEY_UP,
+            c.KEY_FIRE => c.KEY_CYUP,
+            c.KEY_CYUP => c.KEY_CYDN,
+            c.KEY_CYDN => c.KEY_CHANGE,
+            c.MAX_KEY => c.KEY_FIRE,
+            else => unreachable,
         };
     }
 
@@ -378,25 +394,115 @@ const ControllerMenu = struct {
     }
 
     fn draw(self: *const ControllerMenu, currScreen: *c.SDL_Surface) void {
-        _ = self;
-
         c.JE_clr256(currScreen);
 
         for (0..2) |i| {
-            c.JE_outText(currScreen, 100, @intCast(5 + i * 90), &c.destructHelp[i * 12 + 0], 2, 4);
-            c.JE_outText(currScreen, 100, @intCast(15 + i * 90), &c.destructHelp[i * 12 + 1], 2, 1);
-            for (3..12 + 1) |j| {
-                c.JE_outText(
-                    currScreen,
-                    @intCast(((j - 1) % 2) * 160 + 10),
-                    @intCast(15 + ((j - 1) / 2) * 12 + i * 90),
-                    &c.destructHelp[i * 12 + j - 1],
-                    1,
-                    3,
-                );
-            }
+            c.JE_outText(currScreen, @intCast(105 + i * 105), 10, &c.destructHelp[i * 12 + 0], 2, 4);
+            c.JE_outText(currScreen, @intCast(105 + i * 105), 20, &c.destructHelp[i * 12 + 1], 2, 1);
         }
-        c.JE_outText(currScreen, 30, 190, &c.destructHelp[24], 3, 4);
+
+        c.JE_outText(currScreen, 10, @intCast(25 + 2 * 12), "Fire", 1, 3);
+        c.JE_outText(currScreen, 10, @intCast(25 + 3 * 12), "Next weapon", 1, 3);
+        c.JE_outText(currScreen, 10, @intCast(25 + 4 * 12), "Previous weapon", 1, 3);
+        c.JE_outText(currScreen, 10, @intCast(25 + 5 * 12), "Change vehicle", 1, 3);
+        c.JE_outText(currScreen, 10, @intCast(25 + 6 * 12), "Increase velocity", 1, 3);
+        c.JE_outText(currScreen, 10, @intCast(25 + 7 * 12), "Decrease velocity", 1, 3);
+        c.JE_outText(currScreen, 10, @intCast(25 + 8 * 12), "Change angle CCW", 1, 3);
+        c.JE_outText(currScreen, 10, @intCast(25 + 9 * 12), "Change angle CW", 1, 3);
+
+        for (0..c.MAX_PLAYERS) |i| {
+            c.JE_textShade(
+                currScreen,
+                @intCast(110 + i * 110),
+                @intCast(25 + 2 * 12),
+                "key",
+                12,
+                @intCast(@intFromBool(self.key_state == c.KEY_FIRE and self.player_state == i) * @as(c_int, 4)),
+                c.FULL_SHADE,
+            );
+
+            c.JE_textShade(
+                currScreen,
+                @intCast(110 + i * 110),
+                @intCast(25 + 3 * 12),
+                "key",
+                12,
+                @intCast(@intFromBool(self.key_state == c.KEY_CYUP and self.player_state == i) * @as(c_int, 4)),
+                c.FULL_SHADE,
+            );
+
+            c.JE_textShade(
+                currScreen,
+                @intCast(110 + i * 110),
+                @intCast(25 + 4 * 12),
+                "key",
+                12,
+                @intCast(@intFromBool(self.key_state == c.KEY_CYDN and self.player_state == i) * @as(c_int, 4)),
+                c.FULL_SHADE,
+            );
+
+            c.JE_textShade(
+                currScreen,
+                @intCast(110 + i * 110),
+                @intCast(25 + 5 * 12),
+                "key",
+                12,
+                @intCast(@intFromBool(self.key_state == c.KEY_CHANGE and self.player_state == i) * @as(c_int, 4)),
+                c.FULL_SHADE,
+            );
+
+            c.JE_textShade(
+                currScreen,
+                @intCast(110 + i * 110),
+                @intCast(25 + 6 * 12),
+                "key",
+                12,
+                @intCast(@intFromBool(self.key_state == c.KEY_UP and self.player_state == i) * @as(c_int, 4)),
+                c.FULL_SHADE,
+            );
+
+            c.JE_textShade(
+                currScreen,
+                @intCast(110 + i * 110),
+                @intCast(25 + 7 * 12),
+                "key",
+                12,
+                @intCast(@intFromBool(self.key_state == c.KEY_DOWN and self.player_state == i) * @as(c_int, 4)),
+                c.FULL_SHADE,
+            );
+
+            c.JE_textShade(
+                currScreen,
+                @intCast(110 + i * 110),
+                @intCast(25 + 8 * 12),
+                "key",
+                12,
+                @intCast(@intFromBool(self.key_state == c.KEY_LEFT and self.player_state == i) * @as(c_int, 4)),
+                c.FULL_SHADE,
+            );
+
+            c.JE_textShade(
+                currScreen,
+                @intCast(110 + i * 110),
+                @intCast(25 + 9 * 12),
+                "key",
+                12,
+                @intCast(@intFromBool(self.key_state == c.KEY_RIGHT and self.player_state == i) * @as(c_int, 4)),
+                c.FULL_SHADE,
+            );
+        }
+
+        c.JE_textShade(
+            currScreen,
+            c.JE_fontCenter("Back", c.TINY_FONT),
+            @intCast(25 + 11 * 12),
+            "Back",
+            12,
+            @intCast(@intFromBool(self.key_state == c.MAX_KEY) * @as(c_int, 4)),
+            c.FULL_SHADE,
+        );
+
+        c.JE_outText(currScreen, c.JE_fontCenter(&c.destructHelp[24], c.TINY_FONT), 190, &c.destructHelp[24], 3, 4);
 
         c.JE_showVGA();
     }
@@ -537,11 +643,22 @@ export fn JE_helpScreen(currScreen: *c.SDL_Surface, destructPrevScreen: *c.SDL_S
 
     c.fade_palette(&c.colors, 15, 0, 255);
 
-    // wait until user hits a key
     while (true) {
-        c.service_SDL_events(true);
-        SDL.SDL_Delay(16);
-        if (c.newkey) {
+        // wait until user hits a key
+        while (true) {
+            c.service_SDL_events(true);
+            SDL.SDL_Delay(16);
+            if (c.newkey) {
+                break;
+            }
+        }
+
+        const exit = menu_state.handleKeyPress();
+        menu_state.draw(currScreen);
+
+        c.JE_showVGA();
+
+        if (exit) {
             break;
         }
     }
