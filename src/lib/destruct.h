@@ -24,8 +24,6 @@
 #include "opentyr.h"
 #include "config_file.h"
 
-/*** Defines ***/
-#define MAX_KEY_OPTIONS 2
 
 enum de_state_t
 {
@@ -217,7 +215,7 @@ struct destruct_unit_s
 
 struct destruct_keys_s
 {
-    SDL_Scancode Config[MAX_KEY][MAX_KEY_OPTIONS];
+    SDL_Scancode Config[MAX_KEY];
 };
 
 struct destruct_moves_s
@@ -254,7 +252,9 @@ void load_destruct_config(Config *config_, struct destruct_config_s * config);
 
 // Prep functions
 void JE_introScreen(SDL_Surface * screen, SDL_Surface * destructInternalScreen);
-void JE_helpScreen(SDL_Surface * screen, SDL_Surface * destructPrevScreen);
+void JE_helpScreen(SDL_Surface * screen,
+                   SDL_Surface * destructPrevScreen,
+                   const struct destruct_player_s * destruct_player);
 
 // level generating functions
 void DE_ResetLevel(const struct destruct_config_s * config,

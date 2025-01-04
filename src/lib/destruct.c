@@ -275,27 +275,27 @@ static const JE_byte ModeScore[MAX_PLAYERS][MAX_MODES] =
     {1, 0, 5, 0, 1, 1}
 };
 
-static SDL_Scancode defaultKeyConfig[MAX_PLAYERS][MAX_KEY][MAX_KEY_OPTIONS] =
+static SDL_Scancode defaultKeyConfig[MAX_PLAYERS][MAX_KEY] =
 {
     {
-        {SDL_SCANCODE_F},           // LEFT
-        {SDL_SCANCODE_H},           // RIGHT
-        {SDL_SCANCODE_T},           // UP
-        {SDL_SCANCODE_G},           // DOWN
-        {SDL_SCANCODE_Y},           // CHANGE_UNIT
-        {SDL_SCANCODE_A},           // FIRE
-        {SDL_SCANCODE_D},           // CHANGE_WEAPON_UP
-        {SDL_SCANCODE_S}            // CHANGE_WEAPON_DOWN
+        SDL_SCANCODE_F,         // LEFT
+        SDL_SCANCODE_H,         // RIGHT
+        SDL_SCANCODE_T,         // UP
+        SDL_SCANCODE_G,         // DOWN
+        SDL_SCANCODE_Y,         // CHANGE_UNIT
+        SDL_SCANCODE_A,         // FIRE
+        SDL_SCANCODE_D,         // CHANGE_WEAPON_UP
+        SDL_SCANCODE_S          // CHANGE_WEAPON_DOWN
     },
     {
-        {SDL_SCANCODE_KP_4},        // LEFT
-        {SDL_SCANCODE_KP_6},        // RIGHT
-        {SDL_SCANCODE_KP_8},        // UP
-        {SDL_SCANCODE_KP_5},        // DOWN
-        {SDL_SCANCODE_KP_9},        // CHANGE_UNIT
-        {SDL_SCANCODE_SEMICOLON},   // FIRE
-        {SDL_SCANCODE_RETURN},      // CHANGE_WEAPON_UP
-        {SDL_SCANCODE_APOSTROPHE}   // CHANGE_WEAPON_DOWN
+        SDL_SCANCODE_KP_4,      // LEFT
+        SDL_SCANCODE_KP_6,      // RIGHT
+        SDL_SCANCODE_KP_8,      // UP
+        SDL_SCANCODE_KP_5,      // DOWN
+        SDL_SCANCODE_KP_9,      // CHANGE_UNIT
+        SDL_SCANCODE_SEMICOLON, // FIRE
+        SDL_SCANCODE_RETURN,    // CHANGE_WEAPON_UP
+        SDL_SCANCODE_APOSTROPHE // CHANGE_WEAPON_DOWN
     }
 };
 
@@ -349,7 +349,7 @@ void load_destruct_config(Config *config_, struct destruct_config_s * config)
     if (section == NULL)
         exit(EXIT_FAILURE);  // out of memory
 
-    config->alwaysalias = config_get_or_set_bool_option(section, "antialias craters", false, NO_YES);
+    config->alwaysalias = config_get_or_set_bool_option(section, "antialias craters", true, NO_YES);
 
     weaponSystems[UNIT_LASER][SHOT_LASERTRACER] = config_get_or_set_bool_option(section, "tracer laser", false, OFF_ON);
 
@@ -359,7 +359,7 @@ void load_destruct_config(Config *config_, struct destruct_config_s * config)
     config->max_walls = config_get_or_set_int_option(section, "max walls", 20);
 
     config->ai[0] = config_get_or_set_bool_option(section, "left ai", true, NO_YES);
-    config->jumper_straight[0] = config_get_or_set_bool_option(section, "left jumper fires straight", true, NO_YES);
+    config->jumper_straight[0] = config_get_or_set_bool_option(section, "left jumper fires straight", false, NO_YES);
     config->ai[1] = config_get_or_set_bool_option(section, "right ai", false, NO_YES);
     config->jumper_straight[1] = config_get_or_set_bool_option(section, "right jumper fires straight", false, NO_YES);
 
@@ -369,22 +369,28 @@ void load_destruct_config(Config *config_, struct destruct_config_s * config)
     {
         section = config_find_section(config_, "destruct keyboard", player_names[p]);
         if (section == NULL)
+        {
             if ((section = config_add_section(config_, "destruct keyboard", player_names[p])) == NULL)
+            {
                 exit(-1);
+            }
+        }
 
         ConfigOption *option;
 
         for (int k = 0; k < MAX_KEY; ++k)
         {
             if ((option = config_get_or_set_option(section, key_names[k], NULL)) == NULL)
+            {
                 exit(-1);
+            }
 
             foreach_option_i_value(i, value, option)
             {
                 SDL_Scancode key = SDL_GetScancodeFromName(value);
-                if (key != SDL_SCANCODE_UNKNOWN && i < COUNTOF(defaultKeyConfig[p][k]))
+                if (key != SDL_SCANCODE_UNKNOWN && i < 1)
                 {
-                    defaultKeyConfig[p][k][i] = key;
+                    defaultKeyConfig[p][k] = key;
                 }
                 else  // invalid or excess
                 {
@@ -396,15 +402,21 @@ void load_destruct_config(Config *config_, struct destruct_config_s * config)
             if (config_get_value_count(option) > 0)
             {
                 // unset remaining defaults
-                for (unsigned int i = config_get_value_count(option); i < COUNTOF(defaultKeyConfig[p][k]); ++i)
-                    defaultKeyConfig[p][k][i] = SDL_SCANCODE_UNKNOWN;
+                for (unsigned int i = config_get_value_count(option); i < 1; ++i)
+                {
+                    defaultKeyConfig[p][k] = SDL_SCANCODE_UNKNOWN;
+                }
             }
             else
             {
                 // set defaults
-                for (unsigned int i = 0; i < COUNTOF(defaultKeyConfig[p][k]); ++i)
-                    if (defaultKeyConfig[p][k][i] != SDL_SCANCODE_UNKNOWN)
-                        config_add_value(option, SDL_GetScancodeName(defaultKeyConfig[p][k][i]));
+                for (unsigned int i = 0; i < 1; ++i)
+                {
+                    if (defaultKeyConfig[p][k] != SDL_SCANCODE_UNKNOWN)
+                    {
+                        config_add_value(option, SDL_GetScancodeName(defaultKeyConfig[p][k]));
+                    }
+                }
             }
         }
     }
@@ -1216,7 +1228,7 @@ enum de_state_t DE_RunTick(const struct destruct_config_s * config,
 
     if (keysactive[SDL_SCANCODE_F1])
     {
-        JE_helpScreen(world->VGAScreen, destructPrevScreen);
+        JE_helpScreen(world->VGAScreen, destructPrevScreen, destruct_player);
         keysactive[lastkey_scan] = false;
     }
 
@@ -1998,7 +2010,7 @@ static void DE_RunTickDrawHUD(struct destruct_player_s * destruct_player, SDL_Su
 
 static void DE_RunTickGetInput(struct destruct_player_s * destruct_player)
 {
-    unsigned int player_index, key_index, slot_index;
+    unsigned int player_index, key_index;
     SDL_Scancode key;
 
     /* destruct_player.keys holds our key config.  Players will eventually be
@@ -2012,24 +2024,22 @@ static void DE_RunTickGetInput(struct destruct_player_s * destruct_player)
     {
         for (key_index = 0; key_index < MAX_KEY; key_index++)
         {
-            for (slot_index = 0; slot_index < MAX_KEY_OPTIONS; slot_index++)
+            key = destruct_player[player_index].keys.Config[key_index];
+            if (key == SDL_SCANCODE_UNKNOWN)
             {
-                key = destruct_player[player_index].keys.Config[key_index][slot_index];
-                if (key == SDL_SCANCODE_UNKNOWN)
-                    break;
-                if (keysactive[key] == true)
-                {
-                    /* The right key was clearly pressed */
-                    destruct_player[player_index].moves.actions[key_index] = true;
+                continue;
+            }
+            if (keysactive[key] == true)
+            {
+                /* The right key was clearly pressed */
+                destruct_player[player_index].moves.actions[key_index] = true;
 
-                    /* Some keys we want to toggle afterwards */
-                    if (key_index == KEY_CHANGE ||
-                        key_index == KEY_CYUP   ||
-                        key_index == KEY_CYDN)
-                    {
-                        keysactive[key] = false;
-                    }
-                    break;
+                /* Some keys we want to toggle afterwards */
+                if (key_index == KEY_CHANGE ||
+                    key_index == KEY_CYUP   ||
+                    key_index == KEY_CYDN)
+                {
+                    keysactive[key] = false;
                 }
             }
         }

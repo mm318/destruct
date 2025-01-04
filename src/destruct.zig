@@ -26,7 +26,7 @@ config: c.destruct_config_s = .{
     .jumper_straight = .{ true, false },
     .ai = .{ true, false },
 },
-destruct_player: [c.MAX_PLAYERS]c.destruct_player_s = undefined,
+destruct_players: [c.MAX_PLAYERS]c.destruct_player_s = undefined,
 world: c.destruct_world_s = undefined,
 shotRec: *c.destruct_shot_s = undefined,
 exploRec: *c.destruct_explo_s = undefined,
@@ -55,10 +55,10 @@ pub fn JE_destructGame() void {
     for (0..10) |i| {
         self.config.max_installations = c.MAX(self.config.max_installations, c.basetypes[i][0]);
     }
-    self.destruct_player[c.PLAYER_LEFT].unit = @alignCast(@ptrCast(c.malloc(@sizeOf(c.destruct_unit_s) * self.config.max_installations).?));
-    defer c.free(self.destruct_player[c.PLAYER_LEFT].unit);
-    self.destruct_player[c.PLAYER_RIGHT].unit = @alignCast(@ptrCast(c.malloc(@sizeOf(c.destruct_unit_s) * self.config.max_installations).?));
-    defer c.free(self.destruct_player[c.PLAYER_RIGHT].unit);
+    self.destruct_players[c.PLAYER_LEFT].unit = @alignCast(@ptrCast(c.malloc(@sizeOf(c.destruct_unit_s) * self.config.max_installations).?));
+    defer c.free(self.destruct_players[c.PLAYER_LEFT].unit);
+    self.destruct_players[c.PLAYER_RIGHT].unit = @alignCast(@ptrCast(c.malloc(@sizeOf(c.destruct_unit_s) * self.config.max_installations).?));
+    defer c.free(self.destruct_players[c.PLAYER_RIGHT].unit);
 
     self.world.VGAScreen = c.VGAScreen;
     self.destructInternalScreen = c.game_screen;
@@ -78,10 +78,10 @@ fn JE_destructMain(self: *Destruct) void {
     c.JE_loadPic(self.world.VGAScreen, 11, false);
     c.JE_introScreen(self.world.VGAScreen, self.destructInternalScreen);
 
-    c.DE_ResetPlayers(&self.destruct_player);
+    c.DE_ResetPlayers(&self.destruct_players);
 
-    self.destruct_player[c.PLAYER_LEFT].is_cpu = self.config.ai[c.PLAYER_LEFT];
-    self.destruct_player[c.PLAYER_RIGHT].is_cpu = self.config.ai[c.PLAYER_RIGHT];
+    self.destruct_players[c.PLAYER_LEFT].is_cpu = self.config.ai[c.PLAYER_LEFT];
+    self.destruct_players[c.PLAYER_RIGHT].is_cpu = self.config.ai[c.PLAYER_RIGHT];
 
     while (true) {
         self.world.destructMode = JE_destructMenu(
@@ -89,6 +89,7 @@ fn JE_destructMain(self: *Destruct) void {
             self.destructInternalScreen,
             self.destructPrevScreen,
             &self.config,
+            &self.destruct_players,
         );
         if (self.world.destructMode == c.MODE_NONE) {
             break; // User is quitting
@@ -98,10 +99,10 @@ fn JE_destructMain(self: *Destruct) void {
             c.destructFirstTime = true;
             c.JE_loadPic(self.world.VGAScreen, 11, false);
 
-            c.DE_ResetUnits(&self.config, &self.destruct_player);
+            c.DE_ResetUnits(&self.config, &self.destruct_players);
             c.DE_ResetLevel(
                 &self.config,
-                &self.destruct_player,
+                &self.destruct_players,
                 self.shotRec,
                 self.exploRec,
                 &self.world,
@@ -111,7 +112,7 @@ fn JE_destructMain(self: *Destruct) void {
             while (true) {
                 curState = c.DE_RunTick(
                     &self.config,
-                    &self.destruct_player,
+                    &self.destruct_players,
                     self.shotRec,
                     self.exploRec,
                     &self.world,
@@ -168,12 +169,13 @@ const MainMenu = struct {
         self: *MainMenu,
         currScreen: *c.SDL_Surface,
         destructPrevScreen: *c.SDL_Surface,
+        destructPlayers: [*]const c.destruct_player_s,
     ) bool {
         var selection_made = false;
 
         // See what was pressed
         if (c.keysactive[SDL.SDL_SCANCODE_F1] != 0) {
-            JE_helpScreen(currScreen, destructPrevScreen);
+            JE_helpScreen(currScreen, destructPrevScreen, destructPlayers);
         }
         if (c.keysactive[SDL.SDL_SCANCODE_ESCAPE] != 0) {
             self.state = Options.quit;
@@ -249,12 +251,13 @@ const NewGameMenu = struct {
         currScreen: *c.SDL_Surface,
         destructPrevScreen: *c.SDL_Surface,
         config: *const c.destruct_config_s,
+        destructPlayers: [*]const c.destruct_player_s,
     ) bool {
         var selection_made = false;
 
         // See what was pressed
         if (c.keysactive[SDL.SDL_SCANCODE_F1] != 0) {
-            JE_helpScreen(currScreen, destructPrevScreen);
+            JE_helpScreen(currScreen, destructPrevScreen, destructPlayers);
         }
         if (c.keysactive[SDL.SDL_SCANCODE_ESCAPE] != 0) {
             self.state = c.MAX_MODES; // User is quitting, return failure
@@ -393,7 +396,7 @@ const ControllerMenu = struct {
         return selection_made;
     }
 
-    fn draw(self: *const ControllerMenu, currScreen: *c.SDL_Surface) void {
+    fn draw(self: *const ControllerMenu, currScreen: *c.SDL_Surface, destructPlayers: [*]const c.destruct_player_s) void {
         c.JE_clr256(currScreen);
 
         for (0..2) |i| {
@@ -415,7 +418,7 @@ const ControllerMenu = struct {
                 currScreen,
                 @intCast(110 + i * 110),
                 @intCast(25 + 2 * 12),
-                "key",
+                SDL.SDL_GetScancodeName(destructPlayers[i].keys.Config[c.KEY_FIRE]),
                 12,
                 @intCast(@intFromBool(self.key_state == c.KEY_FIRE and self.player_state == i) * @as(c_int, 4)),
                 c.FULL_SHADE,
@@ -425,7 +428,7 @@ const ControllerMenu = struct {
                 currScreen,
                 @intCast(110 + i * 110),
                 @intCast(25 + 3 * 12),
-                "key",
+                SDL.SDL_GetScancodeName(destructPlayers[i].keys.Config[c.KEY_CYUP]),
                 12,
                 @intCast(@intFromBool(self.key_state == c.KEY_CYUP and self.player_state == i) * @as(c_int, 4)),
                 c.FULL_SHADE,
@@ -435,7 +438,7 @@ const ControllerMenu = struct {
                 currScreen,
                 @intCast(110 + i * 110),
                 @intCast(25 + 4 * 12),
-                "key",
+                SDL.SDL_GetScancodeName(destructPlayers[i].keys.Config[c.KEY_CYDN]),
                 12,
                 @intCast(@intFromBool(self.key_state == c.KEY_CYDN and self.player_state == i) * @as(c_int, 4)),
                 c.FULL_SHADE,
@@ -445,7 +448,7 @@ const ControllerMenu = struct {
                 currScreen,
                 @intCast(110 + i * 110),
                 @intCast(25 + 5 * 12),
-                "key",
+                SDL.SDL_GetScancodeName(destructPlayers[i].keys.Config[c.KEY_CHANGE]),
                 12,
                 @intCast(@intFromBool(self.key_state == c.KEY_CHANGE and self.player_state == i) * @as(c_int, 4)),
                 c.FULL_SHADE,
@@ -455,7 +458,7 @@ const ControllerMenu = struct {
                 currScreen,
                 @intCast(110 + i * 110),
                 @intCast(25 + 6 * 12),
-                "key",
+                SDL.SDL_GetScancodeName(destructPlayers[i].keys.Config[c.KEY_UP]),
                 12,
                 @intCast(@intFromBool(self.key_state == c.KEY_UP and self.player_state == i) * @as(c_int, 4)),
                 c.FULL_SHADE,
@@ -465,7 +468,7 @@ const ControllerMenu = struct {
                 currScreen,
                 @intCast(110 + i * 110),
                 @intCast(25 + 7 * 12),
-                "key",
+                SDL.SDL_GetScancodeName(destructPlayers[i].keys.Config[c.KEY_DOWN]),
                 12,
                 @intCast(@intFromBool(self.key_state == c.KEY_DOWN and self.player_state == i) * @as(c_int, 4)),
                 c.FULL_SHADE,
@@ -475,7 +478,7 @@ const ControllerMenu = struct {
                 currScreen,
                 @intCast(110 + i * 110),
                 @intCast(25 + 8 * 12),
-                "key",
+                SDL.SDL_GetScancodeName(destructPlayers[i].keys.Config[c.KEY_LEFT]),
                 12,
                 @intCast(@intFromBool(self.key_state == c.KEY_LEFT and self.player_state == i) * @as(c_int, 4)),
                 c.FULL_SHADE,
@@ -485,7 +488,7 @@ const ControllerMenu = struct {
                 currScreen,
                 @intCast(110 + i * 110),
                 @intCast(25 + 9 * 12),
-                "key",
+                SDL.SDL_GetScancodeName(destructPlayers[i].keys.Config[c.KEY_RIGHT]),
                 12,
                 @intCast(@intFromBool(self.key_state == c.KEY_RIGHT and self.player_state == i) * @as(c_int, 4)),
                 c.FULL_SHADE,
@@ -523,11 +526,12 @@ const MenuState = struct {
         currScreen: *c.SDL_Surface,
         destructPrevScreen: *c.SDL_Surface,
         config: *const c.destruct_config_s,
+        destructPlayers: [*]const c.destruct_player_s,
     ) bool {
         var terminal = false;
         switch (self.state) {
             Menus.main => |*menu| {
-                const selection_made = menu.handleKeyPress(currScreen, destructPrevScreen);
+                const selection_made = menu.handleKeyPress(currScreen, destructPrevScreen, destructPlayers);
                 if (selection_made) {
                     switch (menu.state) {
                         MainMenu.Options.new_game => self.* = .{ .state = .{ .new_game = .{} }, .screen_changed = true },
@@ -537,7 +541,7 @@ const MenuState = struct {
                 }
             },
             Menus.new_game => |*menu| {
-                const selection_made = menu.handleKeyPress(currScreen, destructPrevScreen, config);
+                const selection_made = menu.handleKeyPress(currScreen, destructPrevScreen, config, destructPlayers);
                 if (selection_made) {
                     switch (menu.state) {
                         c.MAX_MODES => self.* = .{ .state = .{ .main = .{} }, .screen_changed = true },
@@ -563,6 +567,7 @@ const MenuState = struct {
         currScreen: *c.SDL_Surface,
         destructInternalScreen: *c.SDL_Surface,
         config: *const c.destruct_config_s,
+        destructPlayers: [*]const c.destruct_player_s,
     ) void {
         if (self.screen_changed) {
             _ = c.memcpy(currScreen.*.pixels, destructInternalScreen.*.pixels, @intCast(currScreen.*.h * currScreen.*.pitch));
@@ -571,7 +576,7 @@ const MenuState = struct {
         switch (self.state) {
             Menus.main => |*menu| menu.draw(currScreen),
             Menus.new_game => |*menu| menu.draw(currScreen, config),
-            Menus.controller => |*menu| menu.draw(currScreen),
+            Menus.controller => |*menu| menu.draw(currScreen, destructPlayers),
         }
     }
 };
@@ -583,6 +588,7 @@ fn JE_destructMenu(
     destructInternalScreen: *c.SDL_Surface,
     destructPrevScreen: *c.SDL_Surface,
     config: *const c.destruct_config_s,
+    destructPlayers: [*]const c.destruct_player_s,
 ) c.de_mode_t {
     _ = c.memcpy(
         destructInternalScreen.*.pixels,
@@ -592,7 +598,7 @@ fn JE_destructMenu(
     var menu_state: MenuState = .{ .state = .{ .main = .{} }, .screen_changed = true };
 
     // Draw the menu and fade us in
-    menu_state.draw(currScreen, destructInternalScreen, config);
+    menu_state.draw(currScreen, destructInternalScreen, config, destructPlayers);
     c.JE_showVGA();
     c.fade_palette(&c.colors, 15, 0, 255);
 
@@ -608,8 +614,8 @@ fn JE_destructMenu(
             }
         }
 
-        const exit = menu_state.handleKeyPress(currScreen, destructPrevScreen, config);
-        menu_state.draw(currScreen, destructInternalScreen, config); // Re-draw the menu every iteration
+        const exit = menu_state.handleKeyPress(currScreen, destructPrevScreen, config, destructPlayers);
+        menu_state.draw(currScreen, destructInternalScreen, config, destructPlayers); // Re-draw the menu every iteration
 
         c.JE_showVGA();
 
@@ -633,13 +639,17 @@ fn JE_destructMenu(
     };
 }
 
-export fn JE_helpScreen(currScreen: *c.SDL_Surface, destructPrevScreen: *c.SDL_Surface) void {
+export fn JE_helpScreen(
+    currScreen: *c.SDL_Surface,
+    destructPrevScreen: *c.SDL_Surface,
+    destructPlayers: [*]const c.destruct_player_s,
+) void {
     // JE_getVGA();  didn't do anything anyway?
     c.fade_black(15);
     _ = c.memcpy(destructPrevScreen.*.pixels, currScreen.*.pixels, @intCast(destructPrevScreen.*.h * destructPrevScreen.*.pitch));
 
     var menu_state = ControllerMenu{};
-    menu_state.draw(currScreen);
+    menu_state.draw(currScreen, destructPlayers);
 
     c.fade_palette(&c.colors, 15, 0, 255);
 
@@ -654,7 +664,7 @@ export fn JE_helpScreen(currScreen: *c.SDL_Surface, destructPrevScreen: *c.SDL_S
         }
 
         const exit = menu_state.handleKeyPress();
-        menu_state.draw(currScreen);
+        menu_state.draw(currScreen, destructPlayers);
 
         c.JE_showVGA();
 
