@@ -169,7 +169,7 @@ const MainMenu = struct {
         self: *MainMenu,
         currScreen: *c.SDL_Surface,
         destructPrevScreen: *c.SDL_Surface,
-        destructPlayers: [*]const c.destruct_player_s,
+        destructPlayers: [*]c.destruct_player_s,
     ) bool {
         var selection_made = false;
 
@@ -251,7 +251,7 @@ const NewGameMenu = struct {
         currScreen: *c.SDL_Surface,
         destructPrevScreen: *c.SDL_Surface,
         config: *const c.destruct_config_s,
-        destructPlayers: [*]const c.destruct_player_s,
+        destructPlayers: [*]c.destruct_player_s,
     ) bool {
         var selection_made = false;
 
@@ -326,8 +326,20 @@ const NewGameMenu = struct {
 };
 
 const ControllerMenu = struct {
-    key_state: c.de_keys_t = c.KEY_FIRE,
+    const KEY_ORDER = [_]c.de_keys_t{
+        c.KEY_FIRE,
+        c.KEY_CYUP,
+        c.KEY_CYDN,
+        c.KEY_CHANGE,
+        c.KEY_UP,
+        c.KEY_DOWN,
+        c.KEY_LEFT,
+        c.KEY_RIGHT,
+    };
+
     player_state: c.de_player_t = c.PLAYER_LEFT,
+    key_state: c.de_keys_t = c.KEY_FIRE,
+    set_key: bool = false,
 
     fn up(option: c.de_keys_t) c.de_keys_t {
         return switch (option) {
@@ -363,36 +375,40 @@ const ControllerMenu = struct {
         return switch (option) {
             c.PLAYER_LEFT => c.PLAYER_RIGHT,
             c.PLAYER_RIGHT => c.PLAYER_LEFT,
-            else => c.PLAYER_LEFT,
+            else => unreachable,
         };
     }
 
     // key_state == c.MAX_KEY means return to main menu
-    fn handleKeyPress(self: *ControllerMenu) bool {
+    fn handleKeyPress(self: *ControllerMenu, destructPlayers: [*]c.destruct_player_s) bool {
         var selection_made = false;
 
-        // See what was pressed
-        if (c.keysactive[SDL.SDL_SCANCODE_ESCAPE] != 0) {
-            self.key_state = c.MAX_KEY;
-            selection_made = true;
-        }
-        if (c.keysactive[SDL.SDL_SCANCODE_RETURN] != 0) {
-            if (self.key_state == c.MAX_KEY) {
+        if (self.set_key) {
+            destructPlayers[self.player_state].keys.Config[self.key_state] = c.lastkey_scan;
+            self.set_key = false;
+        } else {
+            // See what was pressed
+            if (c.keysactive[SDL.SDL_SCANCODE_ESCAPE] != 0) {
+                self.key_state = c.MAX_KEY;
                 selection_made = true;
-            } else {
-                // set key here
+            }
+            if (c.keysactive[SDL.SDL_SCANCODE_RETURN] != 0) {
+                if (self.key_state == c.MAX_KEY) {
+                    selection_made = true;
+                } else {
+                    self.set_key = true;
+                }
+            }
+            if (c.keysactive[SDL.SDL_SCANCODE_UP] != 0) {
+                self.key_state = ControllerMenu.up(self.key_state);
+            }
+            if (c.keysactive[SDL.SDL_SCANCODE_DOWN] != 0) {
+                self.key_state = ControllerMenu.down(self.key_state);
+            }
+            if (c.keysactive[SDL.SDL_SCANCODE_LEFT] != 0 or c.keysactive[SDL.SDL_SCANCODE_RIGHT] != 0) {
+                self.player_state = ControllerMenu.leftOrRight(self.player_state);
             }
         }
-        if (c.keysactive[SDL.SDL_SCANCODE_UP] != 0) {
-            self.key_state = ControllerMenu.up(self.key_state);
-        }
-        if (c.keysactive[SDL.SDL_SCANCODE_DOWN] != 0) {
-            self.key_state = ControllerMenu.down(self.key_state);
-        }
-        if (c.keysactive[SDL.SDL_SCANCODE_LEFT] != 0 or c.keysactive[SDL.SDL_SCANCODE_RIGHT] != 0) {
-            self.player_state = ControllerMenu.leftOrRight(self.player_state);
-        }
-
         return selection_made;
     }
 
@@ -413,86 +429,21 @@ const ControllerMenu = struct {
         c.JE_outText(currScreen, 10, @intCast(25 + 8 * 12), "Change angle CCW", 1, 3);
         c.JE_outText(currScreen, 10, @intCast(25 + 9 * 12), "Change angle CW", 1, 3);
 
-        for (0..c.MAX_PLAYERS) |i| {
-            c.JE_textShade(
-                currScreen,
-                @intCast(110 + i * 110),
-                @intCast(25 + 2 * 12),
-                SDL.SDL_GetScancodeName(destructPlayers[i].keys.Config[c.KEY_FIRE]),
-                12,
-                @intCast(@intFromBool(self.key_state == c.KEY_FIRE and self.player_state == i) * @as(c_int, 4)),
-                c.FULL_SHADE,
-            );
-
-            c.JE_textShade(
-                currScreen,
-                @intCast(110 + i * 110),
-                @intCast(25 + 3 * 12),
-                SDL.SDL_GetScancodeName(destructPlayers[i].keys.Config[c.KEY_CYUP]),
-                12,
-                @intCast(@intFromBool(self.key_state == c.KEY_CYUP and self.player_state == i) * @as(c_int, 4)),
-                c.FULL_SHADE,
-            );
-
-            c.JE_textShade(
-                currScreen,
-                @intCast(110 + i * 110),
-                @intCast(25 + 4 * 12),
-                SDL.SDL_GetScancodeName(destructPlayers[i].keys.Config[c.KEY_CYDN]),
-                12,
-                @intCast(@intFromBool(self.key_state == c.KEY_CYDN and self.player_state == i) * @as(c_int, 4)),
-                c.FULL_SHADE,
-            );
-
-            c.JE_textShade(
-                currScreen,
-                @intCast(110 + i * 110),
-                @intCast(25 + 5 * 12),
-                SDL.SDL_GetScancodeName(destructPlayers[i].keys.Config[c.KEY_CHANGE]),
-                12,
-                @intCast(@intFromBool(self.key_state == c.KEY_CHANGE and self.player_state == i) * @as(c_int, 4)),
-                c.FULL_SHADE,
-            );
-
-            c.JE_textShade(
-                currScreen,
-                @intCast(110 + i * 110),
-                @intCast(25 + 6 * 12),
-                SDL.SDL_GetScancodeName(destructPlayers[i].keys.Config[c.KEY_UP]),
-                12,
-                @intCast(@intFromBool(self.key_state == c.KEY_UP and self.player_state == i) * @as(c_int, 4)),
-                c.FULL_SHADE,
-            );
-
-            c.JE_textShade(
-                currScreen,
-                @intCast(110 + i * 110),
-                @intCast(25 + 7 * 12),
-                SDL.SDL_GetScancodeName(destructPlayers[i].keys.Config[c.KEY_DOWN]),
-                12,
-                @intCast(@intFromBool(self.key_state == c.KEY_DOWN and self.player_state == i) * @as(c_int, 4)),
-                c.FULL_SHADE,
-            );
-
-            c.JE_textShade(
-                currScreen,
-                @intCast(110 + i * 110),
-                @intCast(25 + 8 * 12),
-                SDL.SDL_GetScancodeName(destructPlayers[i].keys.Config[c.KEY_LEFT]),
-                12,
-                @intCast(@intFromBool(self.key_state == c.KEY_LEFT and self.player_state == i) * @as(c_int, 4)),
-                c.FULL_SHADE,
-            );
-
-            c.JE_textShade(
-                currScreen,
-                @intCast(110 + i * 110),
-                @intCast(25 + 9 * 12),
-                SDL.SDL_GetScancodeName(destructPlayers[i].keys.Config[c.KEY_RIGHT]),
-                12,
-                @intCast(@intFromBool(self.key_state == c.KEY_RIGHT and self.player_state == i) * @as(c_int, 4)),
-                c.FULL_SHADE,
-            );
+        for (0.., 0..c.MAX_PLAYERS) |i, curr_player| {
+            for (0.., KEY_ORDER) |j, curr_key| {
+                c.JE_textShade(
+                    currScreen,
+                    @intCast(110 + i * 110),
+                    @intCast(25 + (j + 2) * 12),
+                    if (self.player_state == curr_player and self.key_state == curr_key and self.set_key)
+                        "---"
+                    else
+                        SDL.SDL_GetScancodeName(destructPlayers[curr_player].keys.Config[curr_key]),
+                    12,
+                    @intCast(@intFromBool(self.player_state == curr_player and self.key_state == curr_key) * @as(c_int, 4)),
+                    c.FULL_SHADE,
+                );
+            }
         }
 
         c.JE_textShade(
@@ -526,7 +477,7 @@ const MenuState = struct {
         currScreen: *c.SDL_Surface,
         destructPrevScreen: *c.SDL_Surface,
         config: *const c.destruct_config_s,
-        destructPlayers: [*]const c.destruct_player_s,
+        destructPlayers: [*]c.destruct_player_s,
     ) bool {
         var terminal = false;
         switch (self.state) {
@@ -550,7 +501,7 @@ const MenuState = struct {
                 }
             },
             Menus.controller => |*menu| {
-                const selection_made = menu.handleKeyPress();
+                const selection_made = menu.handleKeyPress(destructPlayers);
                 if (selection_made) {
                     switch (menu.key_state) {
                         c.MAX_KEY => self.* = .{ .state = .{ .main = .{} }, .screen_changed = true },
@@ -588,7 +539,7 @@ fn JE_destructMenu(
     destructInternalScreen: *c.SDL_Surface,
     destructPrevScreen: *c.SDL_Surface,
     config: *const c.destruct_config_s,
-    destructPlayers: [*]const c.destruct_player_s,
+    destructPlayers: [*]c.destruct_player_s,
 ) c.de_mode_t {
     _ = c.memcpy(
         destructInternalScreen.*.pixels,
@@ -642,7 +593,7 @@ fn JE_destructMenu(
 export fn JE_helpScreen(
     currScreen: *c.SDL_Surface,
     destructPrevScreen: *c.SDL_Surface,
-    destructPlayers: [*]const c.destruct_player_s,
+    destructPlayers: [*]c.destruct_player_s,
 ) void {
     // JE_getVGA();  didn't do anything anyway?
     c.fade_black(15);
@@ -663,7 +614,7 @@ export fn JE_helpScreen(
             }
         }
 
-        const exit = menu_state.handleKeyPress();
+        const exit = menu_state.handleKeyPress(destructPlayers);
         menu_state.draw(currScreen, destructPlayers);
 
         c.JE_showVGA();

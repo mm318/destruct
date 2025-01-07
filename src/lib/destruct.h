@@ -254,7 +254,7 @@ void load_destruct_config(Config *config_, struct destruct_config_s * config);
 void JE_introScreen(SDL_Surface * screen, SDL_Surface * destructInternalScreen);
 void JE_helpScreen(SDL_Surface * screen,
                    SDL_Surface * destructPrevScreen,
-                   const struct destruct_player_s * destruct_player);
+                   struct destruct_player_s * destruct_player);
 
 // level generating functions
 void DE_ResetLevel(const struct destruct_config_s * config,
