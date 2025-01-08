@@ -24,8 +24,6 @@
 #include "opentyr.h"
 #include "config_file.h"
 
-/*** Defines ***/
-#define MAX_KEY_OPTIONS 2
 
 enum de_state_t
 {
@@ -42,9 +40,7 @@ enum de_mode_t
     MODE_HELIDEFENSE,
     MODE_OUTGUNNED,
     MODE_CUSTOM,
-    MODE_FIRST = MODE_5CARDWAR,
-    MODE_LAST = MODE_CUSTOM,
-    MAX_MODES = 6,
+    MAX_MODES,
     MODE_NONE = -1
 };
 
@@ -219,7 +215,7 @@ struct destruct_unit_s
 
 struct destruct_keys_s
 {
-    SDL_Scancode Config[MAX_KEY][MAX_KEY_OPTIONS];
+    SDL_Scancode Config[MAX_KEY];
 };
 
 struct destruct_moves_s
@@ -255,8 +251,10 @@ extern JE_byte basetypes[10][11];
 void load_destruct_config(Config *config_, struct destruct_config_s * config);
 
 // Prep functions
-void JE_introScreen(void);
-enum de_mode_t JE_modeSelect(const struct destruct_config_s * config);
+void JE_introScreen(SDL_Surface * screen, SDL_Surface * destructInternalScreen);
+void JE_helpScreen(SDL_Surface * screen,
+                   SDL_Surface * destructPrevScreen,
+                   struct destruct_player_s * destruct_player);
 
 // level generating functions
 void DE_ResetLevel(const struct destruct_config_s * config,
@@ -264,7 +262,7 @@ void DE_ResetLevel(const struct destruct_config_s * config,
                    struct destruct_shot_s * shotRec,
                    struct destruct_explo_s * exploRec,
                    struct destruct_world_s * world,
-                   SDL_Surface * destructTempScreen);
+                   SDL_Surface * destructInternalScreen);
 
 // player functions
 void DE_ResetPlayers(struct destruct_player_s * destruct_player);
@@ -278,6 +276,7 @@ enum de_state_t DE_RunTick(const struct destruct_config_s * config,
                            struct destruct_shot_s * shotRec,
                            struct destruct_explo_s * exploRec,
                            struct destruct_world_s * world,
-                           SDL_Surface * destructTempScreen);
+                           SDL_Surface * destructInternalScreen,
+                           SDL_Surface * destructPrevScreen);
 
 #endif /* DESTRUCT_H */

@@ -50,7 +50,7 @@ const int font_ascii[256] =
 
 int JE_fontCenter(const char *s, unsigned int font)
 {
-	return 160 - (JE_textWidth(s, font) / 2);
+	return (vga_width - JE_textWidth(s, font)) / 2;
 }
 
 int JE_textWidth(const char *s, unsigned int font)
