@@ -384,8 +384,25 @@ const ControllerMenu = struct {
         var selection_made = false;
 
         if (self.set_key) {
-            destructPlayers[self.player_state].keys.Config[self.key_state] = c.lastkey_scan;
-            self.set_key = false;
+            switch (c.lastkey_scan) {
+                SDL.SDL_SCANCODE_ESCAPE => {
+                    self.set_key = false;
+                },
+                SDL.SDL_SCANCODE_F1 => {},
+                SDL.SDL_SCANCODE_F10 => {},
+                SDL.SDL_SCANCODE_BACKSPACE => {},
+                else => {
+                    for (0..c.MAX_PLAYERS) |curr_player| {
+                        for (0..c.MAX_KEY) |curr_key| {
+                            if (destructPlayers[curr_player].keys.Config[curr_key] == c.lastkey_scan) {
+                                destructPlayers[curr_player].keys.Config[curr_key] = SDL.SDL_SCANCODE_UNKNOWN;
+                            }
+                        }
+                    }
+                    destructPlayers[self.player_state].keys.Config[self.key_state] = c.lastkey_scan;
+                    self.set_key = false;
+                },
+            }
         } else {
             // See what was pressed
             if (c.keysactive[SDL.SDL_SCANCODE_ESCAPE] != 0) {
@@ -436,6 +453,8 @@ const ControllerMenu = struct {
                     @intCast(110 + i * 110),
                     @intCast(25 + (j + 2) * 12),
                     if (self.player_state == curr_player and self.key_state == curr_key and self.set_key)
+                        "---"
+                    else if (destructPlayers[curr_player].keys.Config[curr_key] == SDL.SDL_SCANCODE_UNKNOWN)
                         "---"
                     else
                         SDL.SDL_GetScancodeName(destructPlayers[curr_player].keys.Config[curr_key]),
