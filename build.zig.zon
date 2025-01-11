@@ -15,6 +15,7 @@
     // Once all dependencies are fetched, `zig build` no longer requires
     // internet connectivity.
     .dependencies = .{
+        .assets = .{ .path = "assets" },
         .SDLzig = .{ .path = "external_libs/SDL.zig" },
     },
 
@@ -26,7 +27,8 @@
         "build.zig",
         "build.zig.zon",
         "src",
-        //"LICENSE",
-        //"README.md",
+        "assets",
+        "README.md",
+        "COPYING",
     },
 }

@@ -23,6 +23,10 @@
 
 #include "SDL.h"
 
-void JE_loadPic(SDL_Surface *screen, JE_byte PCXnumber, JE_boolean storepal);
+void JE_loadPic(const char * pic_buffer,
+                const size_t pic_buffer_size,
+                SDL_Surface *screen,
+                JE_byte PCXnumber,
+                JE_boolean storepal);
 
 #endif /* PICLOAD_H */

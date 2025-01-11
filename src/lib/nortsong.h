@@ -84,6 +84,9 @@ void setDelay(int delay);
 void wait_delay(void);
 void service_wait_delay(void);
 
-void loadSndFile(bool xmas);
+void loadSndFile(const char * snd_buffer,
+                 const size_t snd_buffer_size,
+                 const char * voice_buffer,
+                 const size_t voice_buffer_size);
 
 #endif /* NORTSONG_H */

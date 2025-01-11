@@ -27,11 +27,15 @@
 #include <string.h>
 #include <stdlib.h>
 
-void JE_loadPic(SDL_Surface *screen, JE_byte PCXnumber, JE_boolean storepal)
+void JE_loadPic(const char * pic_buffer,
+				const size_t pic_buffer_size,
+				SDL_Surface *screen,
+				JE_byte PCXnumber,
+				JE_boolean storepal)
 {
 	PCXnumber--;
 
-	FILE *f = dir_fopen_die(data_dir(), "tyrian.pic", "rb");
+	FILE *f = fmemopen(pic_buffer, pic_buffer_size, "rb");
 
 	static bool first = true;
 	if (first)

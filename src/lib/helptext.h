@@ -69,6 +69,6 @@ extern char menuInt[MENU_MAX+1][11][18];
 void read_encrypted_pascal_string(char *s, size_t size, FILE *f);
 void skip_pascal_string(FILE *f);
 
-void JE_loadHelpText(void);
+void JE_loadHelpText(const char * hdt_buffer, const size_t hdt_buffer_size);
 
 #endif /* HELPTEXT_H */

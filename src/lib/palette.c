@@ -37,10 +37,10 @@ Uint32 rgb_palette[256], yuv_palette[256];
 
 Palette colors;
 
-void JE_loadPals(void)
+void JE_loadPals(const char * palette_buffer, const size_t palette_buffer_size)
 {
-	FILE *f = dir_fopen_die(data_dir(), "palette.dat", "rb");
-	
+	FILE *f = fmemopen(palette_buffer, palette_buffer_size, "rb");
+
 	palette_count = ftell_eof(f) / (256 * 3);
 	assert(palette_count == PALETTE_COUNT);
 	

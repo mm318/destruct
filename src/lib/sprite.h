@@ -81,13 +81,13 @@ Sprite2_array;
 // Destruct sprite sheet.
 extern Sprite2_array destructSpriteSheet;  // fka shapes6
 
-void JE_loadCompShapes(Sprite2_array *, char s);
+void JE_loadCompShapes(const char * sprites_buffer, const size_t sprites_buffer_size, Sprite2_array * sprite2s);
 void JE_loadCompShapesB(Sprite2_array *, FILE *f);
 void free_sprite2s(Sprite2_array *);
 
 void blit_sprite2(SDL_Surface *, int x, int y, Sprite2_array, unsigned int index);
 
-void JE_loadMainShapeTables(const char *shpfile);
+void JE_loadMainShapeTables(const char *shp_buffer, const size_t shp_buffer_size);
 void free_main_shape_tables(void);
 
 #endif // SPRITE_H

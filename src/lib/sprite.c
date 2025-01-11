@@ -277,19 +277,16 @@ void blit_sprite_dark(SDL_Surface *surface, int x, int y, unsigned int table, un
 	}
 }
 
-void JE_loadCompShapes(Sprite2_array *sprite2s, char s)
+void JE_loadCompShapes(const char * sprites_buffer, const size_t sprites_buffer_size, Sprite2_array * sprite2s)
 {
 	free_sprite2s(sprite2s);
+	
+	FILE *f = fmemopen(sprites_buffer, sprites_buffer_size, "rb");
 
-	char buffer[20];
-	snprintf(buffer, sizeof(buffer), "newsh%c.shp", tolower((unsigned char)s));
-	
-	FILE *f = dir_fopen_die(data_dir(), buffer, "rb");
-	
 	sprite2s->size = ftell_eof(f);
 	
 	JE_loadCompShapesB(sprite2s, f);
-	
+
 	fclose(f);
 }
 
@@ -345,11 +342,11 @@ void blit_sprite2(SDL_Surface *surface, int x, int y, Sprite2_array sprite2s, un
 	}
 }
 
-void JE_loadMainShapeTables(const char *shpfile)
+void JE_loadMainShapeTables(const char *shp_buffer, const size_t shp_buffer_size)
 {
     enum { SHP_NUM = 13 };
 
-    FILE *f = dir_fopen_die(data_dir(), shpfile, "rb");
+    FILE *f = fmemopen(shp_buffer, shp_buffer_size, "rb");
 
     JE_word shpNumb;
     JE_longint shpPos[SHP_NUM + 1]; // +1 for storing file length
