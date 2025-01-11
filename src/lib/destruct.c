@@ -553,8 +553,9 @@ static void JE_generateTerrain(const struct destruct_config_s * config,
 static void DE_generateBaseTerrain(unsigned int mapFlags, unsigned int * baseWorld)
 {
     unsigned int i;
-    unsigned int newheight, HeightMul;
+    unsigned int HeightMul;
     float sinewave, sinewave2, cosinewave, cosinewave2;
+    float newheight;
 
     /* The 'terrain' is actually the video buffer :).  If it's brown, flu... er,
      * brown pixels are what we check for collisions with. */
@@ -584,11 +585,15 @@ static void DE_generateBaseTerrain(unsigned int mapFlags, unsigned int * baseWor
                            cosf(cosinewave * i) * 10        + sinf(cosinewave2 * i) * 15) + 130;
 
         /* Bind it; we have mins and maxs */
-        if (newheight < 40)
+        if (newheight < 40.0f)
+        {
             newheight = 40;
-        else if (newheight > 195)
+        }
+        else if (newheight > 195.0f)
+        {
             newheight = 195;
-        baseWorld[i] = newheight;
+        }
+        baseWorld[i] = (unsigned int) newheight;
     }
     /* The base world has been created. */
 }
@@ -823,13 +828,13 @@ static unsigned int JE_placementPosition(unsigned int passed_x, unsigned int wid
      * I wondered if it might be better to not carve out land at all.
      * On testing I determined that was distracting and added nothing. */
     new_y = 0;
-    for (i = passed_x; i <= passed_x + width - 1; i++)
+    for (i = passed_x; i <= passed_x + width - 1 && i <= 318; i++)
     {
         if (new_y < world[i])
             new_y = world[i];
     }
 
-    for (i = passed_x; i <= passed_x + width - 1; i++)
+    for (i = passed_x; i <= passed_x + width - 1 && i <= 318; i++)
     {
         world[i] = new_y;
     }
