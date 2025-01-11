@@ -16,10 +16,9 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-#include "file.h"
 
+#include "file.h"
 #include "opentyr.h"
-#include "varz.h"
 
 #include "SDL.h"
 
@@ -70,7 +69,7 @@ FILE *dir_fopen_die(const char *dir, const char *file, const char *mode)
 		fprintf(stderr, "error: failed to open '%s': %s\n", file, strerror(errno));
 		fprintf(stderr, "error: One or more of the required Tyrian " TYRIAN_VERSION " data files could not be found.\n"
 		                "       Please read the README file.\n");
-		JE_tyrianHalt(1);
+		exit(EXIT_FAILURE);
 	}
 
 	return f;

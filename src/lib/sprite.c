@@ -1,4 +1,4 @@
-/* 
+/*
  * OpenTyrian: A modern cross-platform port of Tyrian
  * Copyright (C) 2007-2009  The OpenTyrian Development Team
  *
@@ -28,10 +28,6 @@
 
 Sprite_array sprite_table[SPRITE_TABLES_MAX];
 
-Sprite2_array shopSpriteSheet;
-
-Sprite2_array explosionSpriteSheet;
-
 Sprite2_array destructSpriteSheet;
 
 Sprite2_array spriteSheet8;
@@ -42,56 +38,52 @@ Sprite2_array spriteSheet12;
 Sprite2_array spriteSheetT2000;
 
 
-void load_sprites(unsigned int table, FILE *f)
-{
-	free_sprites(table);
-	
-	Uint16 temp;
-	fread_u16_die(&temp, 1, f);
-	
-	sprite_table[table].count = temp;
-	
-	assert(sprite_table[table].count <= SPRITES_PER_TABLE_MAX);
-	
-	for (unsigned int i = 0; i < sprite_table[table].count; ++i)
-	{
-		Sprite * const cur_sprite = sprite(table, i);
-
-		bool populated;
-		fread_bool_die(&populated, f);
-		if (!populated) // sprite is empty
-			continue;
-		
-		fread_u16_die(&cur_sprite->width,  1, f);
-		fread_u16_die(&cur_sprite->height, 1, f);
-		fread_u16_die(&cur_sprite->size,   1, f);
-		
-		cur_sprite->data = malloc(cur_sprite->size);
-		
-		fread_u8_die(cur_sprite->data, cur_sprite->size, f);
-	}
-}
-
 void free_sprites(unsigned int table)
 {
-	for (unsigned int i = 0; i < sprite_table[table].count; ++i)
-	{
-		Sprite * const cur_sprite = sprite(table, i);
-		
-		cur_sprite->width  = 0;
-		cur_sprite->height = 0;
-		cur_sprite->size   = 0;
-		
-		free(cur_sprite->data);
-		cur_sprite->data = NULL;
-	}
-	
-	sprite_table[table].count = 0;
+    for (unsigned int i = 0; i < sprite_table[table].count; ++i)
+    {
+        Sprite * const cur_sprite = sprite(table, i);
+
+        cur_sprite->width  = 0;
+        cur_sprite->height = 0;
+        cur_sprite->size   = 0;
+
+        free(cur_sprite->data);
+        cur_sprite->data = NULL;
+    }
+
+    sprite_table[table].count = 0;
 }
 
-// does not clip on left or right edges of surface
+void load_sprites(unsigned int table, FILE *f)
+{
+    free_sprites(table);
 
-// does not clip on left or right edges of surface
+    Uint16 temp;
+    fread_u16_die(&temp, 1, f);
+
+    sprite_table[table].count = temp;
+
+    assert(sprite_table[table].count <= SPRITES_PER_TABLE_MAX);
+
+    for (unsigned int i = 0; i < sprite_table[table].count; ++i)
+    {
+        Sprite * const cur_sprite = sprite(table, i);
+
+        bool populated;
+        fread_bool_die(&populated, f);
+        if (!populated) // sprite is empty
+            continue;
+
+        fread_u16_die(&cur_sprite->width,  1, f);
+        fread_u16_die(&cur_sprite->height, 1, f);
+        fread_u16_die(&cur_sprite->size,   1, f);
+
+        cur_sprite->data = malloc(cur_sprite->size);
+
+        fread_u8_die(cur_sprite->data, cur_sprite->size, f);
+    }
+}
 
 // does not clip on left or right edges of surface
 // unsafe because it doesn't check that value won't overflow into hue
@@ -156,8 +148,6 @@ void blit_sprite_hv_unsafe(SDL_Surface *surface, int x, int y, unsigned int tabl
 		}
 	}
 }
-
-// does not clip on left or right edges of surface
 
 // does not clip on left or right edges of surface
 void blit_sprite_hv_blend(SDL_Surface *surface, int x, int y, unsigned int table, unsigned int index, Uint8 hue, Sint8 value)
@@ -355,90 +345,72 @@ void blit_sprite2(SDL_Surface *surface, int x, int y, Sprite2_array sprite2s, un
 	}
 }
 
-
-// does not clip on left or right edges of surface
-
-// does not clip on left or right edges of surface
-
-// does not clip on left or right edges of surface
-
-
-// does not clip on left or right edges of surface
-
-
-// does not clip on left or right edges of surface
-
-// does not clip on left or right edges of surface
-
-// does not clip on left or right edges of surface
-
-
 void JE_loadMainShapeTables(const char *shpfile)
 {
-	enum { SHP_NUM = 13 };
-	
-	FILE *f = dir_fopen_die(data_dir(), shpfile, "rb");
-	
-	JE_word shpNumb;
-	JE_longint shpPos[SHP_NUM + 1]; // +1 for storing file length
-	
-	fread_u16_die(&shpNumb, 1, f);
-	assert(shpNumb + 1u == COUNTOF(shpPos));
-	
-	fread_s32_die(shpPos, shpNumb, f);
-	
-	fseek(f, 0, SEEK_END);
-	for (unsigned int i = shpNumb; i < COUNTOF(shpPos); ++i)
-		shpPos[i] = ftell(f);
-	
-	int i;
-	// fonts, interface, option sprites
-	for (i = 0; i < 7; i++)
-	{
-		fseek(f, shpPos[i], SEEK_SET);
-		load_sprites(i, f);
-	}
-	
-	// player shot sprites
-	spriteSheet8.size = shpPos[i + 1] - shpPos[i];
-	JE_loadCompShapesB(&spriteSheet8, f);
-	i++;
-	
-	// player ship sprites
-	spriteSheet9.size = shpPos[i + 1] - shpPos[i];
-	JE_loadCompShapesB(&spriteSheet9 , f);
-	i++;
-	
-	// power-up sprites
-	spriteSheet10.size = shpPos[i + 1] - shpPos[i];
-	JE_loadCompShapesB(&spriteSheet10, f);
-	i++;
-	
-	// coins, datacubes, etc sprites
-	spriteSheet11.size = shpPos[i + 1] - shpPos[i];
-	JE_loadCompShapesB(&spriteSheet11, f);
-	i++;
-	
-	// more player shot sprites
-	spriteSheet12.size = shpPos[i + 1] - shpPos[i];
-	JE_loadCompShapesB(&spriteSheet12, f);
-	i++;
+    enum { SHP_NUM = 13 };
 
-	// tyrian 2000 ship sprites
-	spriteSheetT2000.size = shpPos[i + 1] - shpPos[i];
-	JE_loadCompShapesB(&spriteSheetT2000, f);
-	
-	fclose(f);
+    FILE *f = dir_fopen_die(data_dir(), shpfile, "rb");
+
+    JE_word shpNumb;
+    JE_longint shpPos[SHP_NUM + 1]; // +1 for storing file length
+
+    fread_u16_die(&shpNumb, 1, f);
+    assert(shpNumb + 1u == COUNTOF(shpPos));
+
+    fread_s32_die(shpPos, shpNumb, f);
+
+    fseek(f, 0, SEEK_END);
+    for (unsigned int i = shpNumb; i < COUNTOF(shpPos); ++i)
+        shpPos[i] = ftell(f);
+
+    int i;
+    // fonts, interface, option sprites
+    for (i = 0; i < 7; i++)
+    {
+        fseek(f, shpPos[i], SEEK_SET);
+        load_sprites(i, f);
+    }
+
+    // player shot sprites
+    spriteSheet8.size = shpPos[i + 1] - shpPos[i];
+    JE_loadCompShapesB(&spriteSheet8, f);
+    i++;
+
+    // player ship sprites
+    spriteSheet9.size = shpPos[i + 1] - shpPos[i];
+    JE_loadCompShapesB(&spriteSheet9 , f);
+    i++;
+
+    // power-up sprites
+    spriteSheet10.size = shpPos[i + 1] - shpPos[i];
+    JE_loadCompShapesB(&spriteSheet10, f);
+    i++;
+
+    // coins, datacubes, etc sprites
+    spriteSheet11.size = shpPos[i + 1] - shpPos[i];
+    JE_loadCompShapesB(&spriteSheet11, f);
+    i++;
+
+    // more player shot sprites
+    spriteSheet12.size = shpPos[i + 1] - shpPos[i];
+    JE_loadCompShapesB(&spriteSheet12, f);
+    i++;
+
+    // tyrian 2000 ship sprites
+    spriteSheetT2000.size = shpPos[i + 1] - shpPos[i];
+    JE_loadCompShapesB(&spriteSheetT2000, f);
+
+    fclose(f);
 }
 
 void free_main_shape_tables(void)
 {
-	for (uint i = 0; i < COUNTOF(sprite_table); ++i)
-		free_sprites(i);
-	
-	free_sprite2s(&spriteSheet8);
-	free_sprite2s(&spriteSheet9);
-	free_sprite2s(&spriteSheet10);
-	free_sprite2s(&spriteSheet11);
-	free_sprite2s(&spriteSheet12);
+    for (uint i = 0; i < COUNTOF(sprite_table); ++i)
+        free_sprites(i);
+
+    free_sprite2s(&spriteSheet8);
+    free_sprite2s(&spriteSheet9);
+    free_sprite2s(&spriteSheet10);
+    free_sprite2s(&spriteSheet11);
+    free_sprite2s(&spriteSheet12);
 }

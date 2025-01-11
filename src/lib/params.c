@@ -23,7 +23,6 @@
 #include "loudness.h"
 #include "network.h"
 #include "opentyr.h"
-#include "varz.h"
 
 #include <assert.h>
 #include <ctype.h>

@@ -297,9 +297,6 @@ void play_song(unsigned int song_num)  // FKA NortSong.playSong
 	SDL_UnlockAudioDevice(audioDevice);
 }
 
-
-
-
 void set_volume(Uint8 musicVolume_, Uint8 sampleVolume_)  // FKA NortSong.setVol and Player.setVol
 {
 	if (audio_disabled)

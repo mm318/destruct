@@ -22,7 +22,6 @@ const tyrian_srcs = [_][]const u8{
     "src/lib/pcxmast.c",
     "src/lib/picload.c",
     "src/lib/sprite.c",
-    "src/lib/varz.c",
     "src/lib/vga256d.c",
     "src/lib/vga_palette.c",
     "src/lib/video.c",

@@ -58,7 +58,6 @@
 #include "palette.h"
 #include "picload.h"
 #include "sprite.h"
-#include "varz.h"
 #include "vga256d.h"
 #include "video.h"
 
@@ -68,6 +67,21 @@
 #define UNIT_HEIGHT 12
 
 /*** Enums ***/
+enum
+{
+    SA_NONE = 0,
+    SA_NORTSHIPZ = 7,
+    SA_LASTSHIP = 9,
+    
+    // only used for code entry
+    SA_DESTRUCT = 10,
+    SA_ENGAGE = 11,
+    
+    // only used in pItems[P_SUPERARCADE]
+    SA_SUPERTYRIAN = 254,
+    SA_ARCADE = 255
+};
+
 enum de_trails_t
 {
     TRAILS_NONE,
@@ -94,6 +108,7 @@ enum de_mapflags_t
 /* The tracerlaser is dummied out.  It works but (probably due to the low
  * MAX_SHOTS) is not assigned to anything.  The bomb does not work.
  */
+
 
 /*** Function decs ***/
 // Prep functions
@@ -204,6 +219,7 @@ static bool JE_stabilityCheck(const SDL_Surface * destructInternalScreen, unsign
 static void DE_RunTickPlaySounds(void);
 static void JE_eSound(unsigned int);
 
+
 /*** Weapon configurations ***/
 
 /* Part of me wants to leave these as bytes to save space. */
@@ -299,9 +315,6 @@ static SDL_Scancode defaultKeyConfig[MAX_PLAYERS][MAX_KEY] =
     }
 };
 
-/*** Globals ***/
-JE_boolean destructFirstTime;
-
 static const char *const player_names[] =
 {
     "left",
@@ -332,11 +345,21 @@ static const char *const unit_names[] =
     "heli",
 };
 
+/*** Globals ***/
+JE_boolean destructFirstTime;
+
+/* Sound Effects Queue */
+JE_byte soundQueue[8]; /* [0..7] */
+
 static enum de_unit_t get_unit_by_name(const char *unit_name)
 {
     for (enum de_unit_t unit = UNIT_FIRST; unit < MAX_UNITS; ++unit)
+    {
         if (strcmp(unit_name, unit_names[unit]) == 0)
+        {
             return unit;
+        }
+    }
 
     return UNIT_NONE;
 }

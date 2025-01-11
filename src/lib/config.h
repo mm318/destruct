@@ -143,7 +143,6 @@ enum
 extern DosKeySettings dosKeySettings;  // fka keySettings
 extern KeySettings keySettings;
 extern MouseSettings mouseSettings;
-extern JE_boolean trentWin;
 extern JE_byte inputDevice[2];
 extern JE_byte gammaCorrection;
 extern JE_byte versionNum;

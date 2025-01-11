@@ -24,7 +24,6 @@
 #include "opentyr.h"
 #include "picload.h"
 #include "sprite.h"
-#include "varz.h"
 #include "video.h"
 
 #include <assert.h>
