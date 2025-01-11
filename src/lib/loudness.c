@@ -243,11 +243,11 @@ void deinit_audio(void)
 	lds_free();
 }
 
-void load_music(void)  // FKA NortSong.loadSong
+void load_music(const char * music_buffer, const size_t music_buffer_size)  // FKA NortSong.loadSong
 {
 	if (music_file == NULL)
 	{
-		music_file = dir_fopen_die(data_dir(), "music.mus", "rb");
+		music_file = fmemopen(music_buffer, music_buffer_size, "rb");
 
 		fread_u16_die(&song_count, 1, music_file);
 
@@ -296,9 +296,6 @@ void play_song(unsigned int song_num)  // FKA NortSong.playSong
 
 	SDL_UnlockAudioDevice(audioDevice);
 }
-
-
-
 
 void set_volume(Uint8 musicVolume_, Uint8 sampleVolume_)  // FKA NortSong.setVol and Player.setVol
 {

@@ -13,7 +13,6 @@ const c = @cImport({
     @cInclude("palette.h");
     @cInclude("params.h");
     @cInclude("sprite.h");
-    @cInclude("varz.h");
     @cInclude("video.h");
 });
 
@@ -52,6 +51,7 @@ pub fn main() u8 {
         std.log.err("Failed to initialize SDL: {s}", .{SDL.SDL_GetError()});
         return 0xFF;
     }
+    defer c.SDL_Quit();
 
     // Note for this reorganization:
     // Tyrian 2000 requires help text to be loaded before the configuration,
@@ -59,25 +59,44 @@ pub fn main() u8 {
 
     c.JE_paramCheck(2, args_ptr);
 
-    c.JE_loadHelpText();
+    c.JE_loadHelpText(destruct.assets.texts.ptr, destruct.assets.texts.len);
 
     c.JE_loadConfiguration();
+    defer {
+        // TODO?
+        // JE_drawANSI("exitmsg.bin");
+        // JE_gotoXY(1,22);
+        c.JE_saveConfiguration();
+    }
 
     c.init_video();
+    defer c.deinit_video();
+
     c.init_keyboard();
     std.log.debug("assuming mouse detected", .{}); // SDL can't tell us if there isn't one
 
-    c.JE_loadPals();
-    c.JE_loadMainShapeTables("tyrian.shp");
+    c.JE_loadPals(destruct.assets.palettes.ptr, destruct.assets.palettes.len);
+    c.JE_loadMainShapeTables(destruct.assets.fonts.ptr, destruct.assets.fonts.len);
+    defer c.free_main_shape_tables();
 
     std.log.debug("initializing SDL audio...", .{});
     _ = c.init_audio();
-    c.load_music();
-    c.loadSndFile(false); // xmas = false
+    defer c.deinit_audio();
+
+    c.load_music(destruct.assets.music.ptr, destruct.assets.music.len); // leaks memory of song_offset
+    c.loadSndFile(
+        destruct.assets.sounds.ptr,
+        destruct.assets.sounds.len,
+        destruct.assets.voice_samples.ptr,
+        destruct.assets.voice_samples.len,
+    );
+    defer {
+        for (0..c.SOUND_COUNT) |i| {
+            c.free(c.soundSamples[i]);
+        }
+    }
 
     destruct.JE_destructGame();
-
-    c.JE_tyrianHalt(0);
 
     return 0;
 }

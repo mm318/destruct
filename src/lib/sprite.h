@@ -66,23 +66,8 @@ static inline bool sprite_exists(unsigned int table, unsigned int index)
 {
 	return (sprite(table, index)->data != NULL);
 }
-static inline Uint16 get_sprite_width(unsigned int table, unsigned int index)
-{
-	return (sprite_exists(table, index) ? sprite(table, index)->width : 0);
-}
-static inline Uint16 get_sprite_height(unsigned int table, unsigned int index)
-{
-	return (sprite_exists(table, index) ? sprite(table, index)->height : 0);
-}
 
-void load_sprites_file(unsigned int table, const char *filename);
-void load_sprites(unsigned int table, FILE *f);
-void free_sprites(unsigned int table);
-
-void blit_sprite(SDL_Surface *, int x, int y, unsigned int table, unsigned int index); // JE_newDrawCShapeNum
-void blit_sprite_blend(SDL_Surface *, int x, int y, unsigned int table, unsigned int index); // JE_newDrawCShapeTrick
 void blit_sprite_hv_unsafe(SDL_Surface *, int x, int y, unsigned int table, unsigned int index, Uint8 hue, Sint8 value); // JE_newDrawCShapeBright
-void blit_sprite_hv(SDL_Surface *, int x, int y, unsigned int table, unsigned int index, Uint8 hue, Sint8 value); // JE_newDrawCShapeAdjust
 void blit_sprite_hv_blend(SDL_Surface *, int x, int y, unsigned int table, unsigned int index, Uint8 hue, Sint8 value); // JE_newDrawCShapeModify
 void blit_sprite_dark(SDL_Surface *, int x, int y, unsigned int table, unsigned int index, bool black); // JE_newDrawCShapeDarken, JE_newDrawCShapeShadow
 
@@ -93,30 +78,16 @@ typedef struct
 }
 Sprite2_array;
 
-// Shop icons and arrows sprite sheet.
-extern Sprite2_array shopSpriteSheet;  // fka shapes6
-
-// Explosions sprite sheet.
-extern Sprite2_array explosionSpriteSheet;  // fka shapes6
-
 // Destruct sprite sheet.
 extern Sprite2_array destructSpriteSheet;  // fka shapes6
 
-// Static sprite sheets.  Player shots, player ships, power-ups, coins, etc.
-extern Sprite2_array spriteSheet8;  // fka shapesC1
-extern Sprite2_array spriteSheet9;  // fka shapes9
-extern Sprite2_array spriteSheet10;  // fka eShapes6
-extern Sprite2_array spriteSheet11;  // fka eShapes5
-extern Sprite2_array spriteSheet12;  // fka shapesW2
-extern Sprite2_array spriteSheetT2000; // fka shapesT2k
-
-void JE_loadCompShapes(Sprite2_array *, char s);
+void JE_loadCompShapes(const char * sprites_buffer, const size_t sprites_buffer_size, Sprite2_array * sprite2s);
 void JE_loadCompShapesB(Sprite2_array *, FILE *f);
 void free_sprite2s(Sprite2_array *);
 
 void blit_sprite2(SDL_Surface *, int x, int y, Sprite2_array, unsigned int index);
 
-void JE_loadMainShapeTables(const char *shpfile);
+void JE_loadMainShapeTables(const char *shp_buffer, const size_t shp_buffer_size);
 void free_main_shape_tables(void);
 
 #endif // SPRITE_H

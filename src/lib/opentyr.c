@@ -33,7 +33,6 @@
 #include "params.h"
 #include "picload.h"
 #include "sprite.h"
-#include "varz.h"
 #include "vga256d.h"
 #include "video.h"
 #include "video_scale.h"

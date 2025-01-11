@@ -13,6 +13,8 @@ const c = @cImport({
     @cInclude("video.h");
 });
 
+pub const assets = @import("assets");
+
 const Destruct = @This();
 
 config: c.destruct_config_s = .{
@@ -64,7 +66,7 @@ pub fn JE_destructGame() void {
     self.destructInternalScreen = c.game_screen;
     self.destructPrevScreen = c.VGAScreen2;
 
-    c.JE_loadCompShapes(&c.destructSpriteSheet, '~');
+    c.JE_loadCompShapes(assets.game_sprites.ptr, assets.game_sprites.len, &c.destructSpriteSheet);
     defer c.free_sprite2s(&c.destructSpriteSheet);
 
     c.fade_black(1);
@@ -75,7 +77,7 @@ pub fn JE_destructGame() void {
 fn JE_destructMain(self: *Destruct) void {
     var curState: c.de_state_t = c.STATE_INIT;
 
-    c.JE_loadPic(self.world.VGAScreen, 11, false);
+    c.JE_loadPic(assets.game_screen.ptr, assets.game_screen.len, self.world.VGAScreen, 11, false);
     c.JE_introScreen(self.world.VGAScreen, self.destructInternalScreen);
 
     c.DE_ResetPlayers(&self.destruct_players);
@@ -97,7 +99,7 @@ fn JE_destructMain(self: *Destruct) void {
 
         while (true) {
             c.destructFirstTime = true;
-            c.JE_loadPic(self.world.VGAScreen, 11, false);
+            c.JE_loadPic(assets.game_screen.ptr, assets.game_screen.len, self.world.VGAScreen, 11, false);
 
             c.DE_ResetUnits(&self.config, &self.destruct_players);
             c.DE_ResetLevel(

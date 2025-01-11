@@ -23,7 +23,6 @@
 #include "mtrand.h"
 #include "nortsong.h"
 #include "opentyr.h"
-#include "varz.h"
 #include "vga256d.h"
 #include "video.h"
 #include "video_scale.h"
@@ -120,8 +119,6 @@ MouseSettings mouseSettings;
 
 /* Configuration */
 JE_boolean filtrationAvail;
-
-JE_boolean trentWin = false;
 
 JE_byte inputDevice[2] = { 1, 2 }; // 0:any  1:keyboard  2:mouse  3+:joystick
 

@@ -69,11 +69,14 @@ void service_wait_delay(void)
 }
 
 
-void loadSndFile(bool xmas)
+void loadSndFile(const char * snd_buffer,
+				 const size_t snd_buffer_size,
+				 const char * voice_buffer,
+				 const size_t voice_buffer_size)
 {
 	FILE *f;
 
-	f = dir_fopen_die(data_dir(), "tyrian.snd", "rb");
+	f = fmemopen(snd_buffer, snd_buffer_size, "rb");
 
 	Uint16 sfxCount;
 	Uint32 sfxPositions[SFX_COUNT + 1];
@@ -108,7 +111,7 @@ void loadSndFile(bool xmas)
 
 	fclose(f);
 
-	f = dir_fopen_die(data_dir(), xmas ? "voicesc.snd" : "voices.snd", "rb");
+	f = fmemopen(voice_buffer, voice_buffer_size, "rb");
 
 	Uint16 voiceCount;
 	Uint32 voicePositions[VOICE_COUNT + 1];
