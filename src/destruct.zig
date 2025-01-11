@@ -388,9 +388,10 @@ const ControllerMenu = struct {
                 SDL.SDL_SCANCODE_ESCAPE => {
                     self.set_key = false;
                 },
-                SDL.SDL_SCANCODE_F1 => {},
-                SDL.SDL_SCANCODE_F10 => {},
-                SDL.SDL_SCANCODE_BACKSPACE => {},
+                SDL.SDL_SCANCODE_F1 => {}, // reserved for bringing up help screen (controller menu)
+                SDL.SDL_SCANCODE_F10 => {}, // reserved for toggling left player to be cpu/human
+                SDL.SDL_SCANCODE_F11 => {}, // reserved for toggling right player to be cpu/human
+                SDL.SDL_SCANCODE_BACKSPACE => {}, // reserved for starting new round
                 else => {
                     for (0..c.MAX_PLAYERS) |curr_player| {
                         for (0..c.MAX_KEY) |curr_key| {

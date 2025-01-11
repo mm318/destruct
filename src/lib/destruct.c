@@ -2002,9 +2002,11 @@ static void DE_RunTickDrawHUD(struct destruct_player_s * destruct_player, SDL_Su
 
         JE_outText   (screen, startX + 20, 3, weaponNames[curUnit->shotType], 15, 2);
         sprintf      (tempstr, "dmg~%d~", curUnit->health);
-        JE_outText   (screen, startX + 75, 3, tempstr, 15, 0);
+        JE_outText   (screen, startX + 73, 3, tempstr, 15, 0);
         sprintf      (tempstr, "pts~%d~", destruct_player[i].score);
-        JE_outText   (screen, startX + 110, 3, tempstr, 15, 0);
+        JE_outText   (screen, startX + 106, 3, tempstr, 15, 0);
+
+        JE_outText(screen, startX + 137, 3, (destruct_player[i].is_cpu) ? "C" : "H", 15, 2);
     }
 }
 
