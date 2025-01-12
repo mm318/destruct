@@ -19,23 +19,6 @@ const c = @cImport({
 const destruct = @import("destruct.zig");
 
 pub fn main() u8 {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-
-    const allocator = gpa.allocator();
-
-    const exe_path = std.fs.selfExePathAlloc(allocator) catch @panic("oom");
-    defer allocator.free(exe_path);
-    const exe_dir = std.fs.selfExeDirPathAlloc(allocator) catch @panic("oom");
-    defer allocator.free(exe_dir);
-
-    const arg0 = std.fmt.allocPrintZ(allocator, "{s}", .{exe_path}) catch @panic("oom");
-    defer allocator.free(arg0);
-    const arg1 = std.fmt.allocPrintZ(allocator, "--data={s}", .{exe_dir}) catch @panic("oom");
-    defer allocator.free(arg1);
-
-    const args_ptr: [*c][*c]u8 = @constCast(@ptrCast(&.{ arg0.ptr, arg1.ptr }));
-
     c.mt_srand(@intCast(c.time(0)));
 
     std.log.info("Welcome to... >> {s} {s} <<\n", .{ c.opentyrian_str, c.opentyrian_version });
@@ -57,7 +40,7 @@ pub fn main() u8 {
     // Tyrian 2000 requires help text to be loaded before the configuration,
     // because the default high score names are stored in help text
 
-    c.JE_paramCheck(2, args_ptr);
+    c.JE_paramCheck(0, null);
 
     c.JE_loadHelpText(destruct.assets.texts.ptr, destruct.assets.texts.len);
 
