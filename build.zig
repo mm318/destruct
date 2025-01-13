@@ -51,10 +51,19 @@ pub fn build(b: *std.Build) !void {
         const emsdk_sysroot = b.pathJoin(&.{ emSdkPath(b), "upstream", "emscripten", "cache", "sysroot" });
         b.sysroot = emsdk_sysroot;
 
-        const target_query = target.query;
+        var target_query = target.query;
+        for (target.result.cpu.arch.allFeaturesList(), 0..) |feature, index_usize| {
+            const index = @as(std.Target.Cpu.Feature.Set.Index, @intCast(index_usize));
+            if (feature.llvm_name) |llvm_name| {
+                if (std.mem.eql(u8, llvm_name, "atomics") or std.mem.eql(u8, llvm_name, "bulk-memory")) {
+                    target_query.cpu_features_add.addFeature(index);
+                }
+            }
+        }
+
         const new_target = b.resolveTargetQuery(std.Target.Query{
             .cpu_arch = target_query.cpu_arch,
-            .cpu_model = .{ .explicit = try target_query.cpu_arch.?.parseCpuModel("bleeding_edge") },
+            .cpu_model = target_query.cpu_model,
             .cpu_features_add = target_query.cpu_features_add,
             .cpu_features_sub = target_query.cpu_features_sub,
             .os_tag = .emscripten,
