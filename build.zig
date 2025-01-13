@@ -238,6 +238,7 @@ pub const EmLinkOptions = struct {
     use_webgl2: bool = false,
     use_webgpu: bool = false,
     use_filesystem: bool = false,
+    use_asyncify: bool = true,
     shell_file_path: ?[]const u8 = null,
     extra_args: []const []const u8 = &.{},
 };
@@ -307,9 +308,11 @@ fn emLinkStep(b: *Build, options: EmLinkOptions) !*Build.Step.Run {
     // for os_tag == .emscripten.
     // However currently then it crashes when trying to call "std.debug.captureStackTrace"
     try emcc_cmd.append("-sUSE_OFFSET_CONVERTER=1");
-    try emcc_cmd.append("-sFULL-ES3=1");
+    try emcc_cmd.append("-sFULL_ES3=1");
     try emcc_cmd.append("-sUSE_GLFW=3");
-    try emcc_cmd.append("-sASYNCIFY");
+    if (options.use_asyncify) {
+        try emcc_cmd.append("-sASYNCIFY");
+    }
 
     // try emcc_cmd.append("--embed-file");
     // try emcc_cmd.append("assets@/wasm_data");
