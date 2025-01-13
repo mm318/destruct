@@ -40,7 +40,6 @@ const c_flags: []const []const u8 = &.{
     "-O2",
     "-MMD",
     "-DNDEBUG",
-    "-pthread",
 };
 
 pub fn build(b: *std.Build) !void {
@@ -48,21 +47,51 @@ pub fn build(b: *std.Build) !void {
     const optimize = b.standardOptimizeOption(.{});
 
     // Setup sysroot with Emscripten so dependencies know where the system include files are
-    if (target.result.os.tag == .emscripten) {
+    const resolved_target = if (target.result.os.tag == .emscripten) blk: {
         const emsdk_sysroot = b.pathJoin(&.{ emSdkPath(b), "upstream", "emscripten", "cache", "sysroot" });
         b.sysroot = emsdk_sysroot;
-    }
 
-    const exe = if (target.result.os.tag == .emscripten) try compileEmscripten(
+        const target_query = target.query;
+        const new_target = b.resolveTargetQuery(std.Target.Query{
+            .cpu_arch = target_query.cpu_arch,
+            .cpu_model = .{ .explicit = try target_query.cpu_arch.?.parseCpuModel("bleeding_edge") },
+            .cpu_features_add = target_query.cpu_features_add,
+            .cpu_features_sub = target_query.cpu_features_sub,
+            .os_tag = .emscripten,
+            .os_version_min = target_query.os_version_min,
+            .os_version_max = target_query.os_version_max,
+            .glibc_version = target_query.glibc_version,
+            .abi = target_query.abi,
+            .dynamic_linker = target_query.dynamic_linker,
+            .ofmt = target_query.ofmt,
+        });
+
+        std.log.info("resolved target cpu_model {s}", .{new_target.result.cpu.model.name});
+        for (new_target.result.cpu.arch.allFeaturesList(), 0..) |feature, index_usize| {
+            const index = @as(std.Target.Cpu.Feature.Set.Index, @intCast(index_usize));
+            const is_enabled = new_target.result.cpu.features.isEnabled(index);
+            if (feature.llvm_name) |llvm_name| {
+                std.log.info("feature {s} {s}", .{ llvm_name, if (is_enabled) "enabled" else "disabled" });
+            } else {
+                std.log.info("unnamed feature {s}", .{if (is_enabled) "enabled" else "disabled"});
+            }
+        }
+
+        break :blk new_target;
+    } else blk: {
+        break :blk target;
+    };
+
+    const exe = if (resolved_target.result.os.tag == .emscripten) try compileEmscripten(
         b,
         "destruct",
         "src/main.zig",
-        target,
+        resolved_target,
         optimize,
     ) else b.addExecutable(.{
         .name = "destruct",
         .root_source_file = b.path("src/main.zig"),
-        .target = target,
+        .target = resolved_target,
         .optimize = optimize,
     });
     exe.addCSourceFiles(.{ .files = &tyrian_srcs, .flags = c_flags });
@@ -75,10 +104,10 @@ pub fn build(b: *std.Build) !void {
     {
         const sdl_dep = b.dependency("sdl", .{
             .optimize = .ReleaseFast,
-            .target = target,
+            .target = resolved_target,
             .c_flags = c_flags,
         });
-        if (target.query.isNativeOs() and target.result.os.tag == .linux) {
+        if (resolved_target.query.isNativeOs() and resolved_target.result.os.tag == .linux) {
             // The SDL package doesn't work for Linux yet, so we rely on system
             // packages for now.
             exe.linkSystemLibrary("SDL2");
@@ -90,10 +119,10 @@ pub fn build(b: *std.Build) !void {
         exe.root_module.addIncludePath(sdl_dep.path("include/"));
     }
 
-    if (target.result.os.tag == .emscripten) {
+    if (resolved_target.result.os.tag == .emscripten) {
         const link_step = try emLinkStep(b, .{
             .lib_main = exe,
-            .target = target,
+            .target = resolved_target,
             .optimize = optimize,
             .use_pthreads = true,
         });
@@ -121,26 +150,11 @@ pub fn compileEmscripten(
     resolved_target: std.Build.ResolvedTarget,
     optimize: std.builtin.Mode,
 ) !*std.Build.Step.Compile {
-    const target = resolved_target.query;
-    const new_target = b.resolveTargetQuery(std.Target.Query{
-        .cpu_arch = target.cpu_arch,
-        .cpu_model = target.cpu_model,
-        .cpu_features_add = target.cpu_features_add,
-        .cpu_features_sub = target.cpu_features_sub,
-        .os_tag = .emscripten,
-        .os_version_min = target.os_version_min,
-        .os_version_max = target.os_version_max,
-        .glibc_version = target.glibc_version,
-        .abi = target.abi,
-        .dynamic_linker = target.dynamic_linker,
-        .ofmt = target.ofmt,
-    });
-
     // The project is built as a library and linked later.
     const exe_lib = b.addStaticLibrary(.{
         .name = name,
         .root_source_file = b.path(root_source_file),
-        .target = new_target,
+        .target = resolved_target,
         .optimize = optimize,
     });
 
@@ -148,7 +162,7 @@ pub fn compileEmscripten(
     const include_path = b.pathJoin(&.{ emsdk_sysroot, "include" });
     exe_lib.addSystemIncludePath(.{ .cwd_relative = include_path });
 
-    if (new_target.query.os_tag == .wasi) {
+    if (resolved_target.query.os_tag == .wasi) {
         const webhack_c =
             \\// Zig adds '__stack_chk_guard', '__stack_chk_fail', and 'errno',
             \\// which emscripten doesn't actually support.
