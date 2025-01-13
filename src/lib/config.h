@@ -156,7 +156,6 @@ extern JE_word editorLevel;
 extern Config opentyrian_config;
 
 void JE_initProcessorType(void);
-const char *get_user_directory(void);
 void JE_loadConfiguration(void);
 void JE_saveConfiguration(void);
 

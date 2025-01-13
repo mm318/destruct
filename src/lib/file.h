@@ -24,15 +24,6 @@
 #include <stdbool.h>
 #include <stdio.h>
 
-extern const char *custom_data_dir;
-
-const char *data_dir(void);
-
-FILE *dir_fopen(const char *dir, const char *file, const char *mode);
-FILE *dir_fopen_warn(const char *dir, const char *file, const char *mode);
-FILE *dir_fopen_die(const char *dir, const char *file, const char *mode);
-
-bool dir_file_exists(const char *dir, const char *file);
 
 long ftell_eof(FILE *f);
 
