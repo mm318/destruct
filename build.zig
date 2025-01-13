@@ -271,8 +271,7 @@ fn emLinkStep(b: *Build, options: EmLinkOptions) !*Build.Step.Run {
             try emcc_cmd.append("-Wl,-u,_emscripten_run_callback_on_thread");
         }
         if (options.release_use_closure) {
-            try emcc_cmd.append("--closure");
-            try emcc_cmd.append("1");
+            try emcc_cmd.append("--closure 1");
         }
     }
     if (options.use_emmalloc) {
@@ -290,6 +289,7 @@ fn emLinkStep(b: *Build, options: EmLinkOptions) !*Build.Step.Run {
         try emcc_cmd.append("-sUSE_WEBGPU=1");
     }
     if (!options.use_filesystem) {
+        try emcc_cmd.append("-sFILESYSTEM=0");
         try emcc_cmd.append("-sNO_FILESYSTEM=1");
     }
     if (options.shell_file_path) |shell_file_path| {

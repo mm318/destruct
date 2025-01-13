@@ -23,6 +23,8 @@
 
 #include <emscripten/emscripten.h>
 
+EM_JS_DEPS(sdlsysurl, "$UTF8ToString");
+
 int
 SDL_SYS_OpenURL(const char *url)
 {

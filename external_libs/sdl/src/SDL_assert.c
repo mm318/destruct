@@ -260,7 +260,7 @@ SDL_PromptAssertion(const SDL_assert_data *data, void *userdata)
         /* This is nasty, but we can't block on a custom UI. */
         for ( ; ; ) {
             SDL_bool okay = SDL_TRUE;
-            char *buf = (char *) EM_ASM_INT({
+            char *buf = (char *) MAIN_THREAD_EM_ASM_INT({
                 var str =
                     UTF8ToString($0) + '\n\n' +
                     'Abort/Retry/Ignore/AlwaysIgnore? [ariA] :';

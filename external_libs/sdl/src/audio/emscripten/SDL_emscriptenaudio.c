@@ -196,6 +196,8 @@ EMSCRIPTENAUDIO_CloseDevice(_THIS)
 #endif
 }
 
+EM_JS_DEPS(sdlaudio, "$autoResumeAudioContext,$dynCall");
+
 static int
 EMSCRIPTENAUDIO_OpenDevice(_THIS, const char *devname)
 {
