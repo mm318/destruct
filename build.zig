@@ -75,21 +75,25 @@ pub fn build(b: *std.Build) !void {
             .ofmt = target_query.ofmt,
         });
 
-        std.log.info("resolved target cpu_model {s}", .{new_target.result.cpu.model.name});
-        for (new_target.result.cpu.arch.allFeaturesList(), 0..) |feature, index_usize| {
-            const index = @as(std.Target.Cpu.Feature.Set.Index, @intCast(index_usize));
-            const is_enabled = new_target.result.cpu.features.isEnabled(index);
-            if (feature.llvm_name) |llvm_name| {
-                std.log.info("feature {s} {s}", .{ llvm_name, if (is_enabled) "enabled" else "disabled" });
-            } else {
-                std.log.info("unnamed feature {s}", .{if (is_enabled) "enabled" else "disabled"});
-            }
-        }
-
         break :blk new_target;
     } else blk: {
         break :blk target;
     };
+
+    std.log.info("resolved target: arch {s}, cpu_model {s}, os {s}", .{
+        resolved_target.result.cpu.arch.genericName(),
+        resolved_target.result.cpu.model.name,
+        @tagName(resolved_target.result.os.tag),
+    });
+    for (resolved_target.result.cpu.arch.allFeaturesList(), 0..) |feature, index_usize| {
+        const index = @as(std.Target.Cpu.Feature.Set.Index, @intCast(index_usize));
+        const is_enabled = resolved_target.result.cpu.features.isEnabled(index);
+        if (feature.llvm_name) |llvm_name| {
+            std.log.info("    feature {s} {s}", .{ llvm_name, if (is_enabled) "enabled" else "disabled" });
+        } else {
+            std.log.info("    feature (unnamed) {s}", .{if (is_enabled) "enabled" else "disabled"});
+        }
+    }
 
     const exe = if (resolved_target.result.os.tag == .emscripten) try compileEmscripten(
         b,
