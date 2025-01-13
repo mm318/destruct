@@ -27,62 +27,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-const char *custom_data_dir = NULL;
-
-// finds the Tyrian data directory
-const char *data_dir(void)
-{
-	return (custom_data_dir == NULL) ? "." : custom_data_dir;
-}
-
-// prepend directory and fopen
-FILE *dir_fopen(const char *dir, const char *file, const char *mode)
-{
-	char *path = malloc(strlen(dir) + 1 + strlen(file) + 1);
-	sprintf(path, "%s/%s", dir, file);
-
-	FILE *f = fopen(path, mode);
-
-	free(path);
-
-	return f;
-}
-
-// warn when dir_fopen fails
-FILE *dir_fopen_warn(const char *dir, const char *file, const char *mode)
-{
-	FILE *f = dir_fopen(dir, file, mode);
-
-	if (f == NULL)
-		fprintf(stderr, "warning: failed to open '%s': %s\n", file, strerror(errno));
-
-	return f;
-}
-
-// die when dir_fopen fails
-FILE *dir_fopen_die(const char *dir, const char *file, const char *mode)
-{
-	FILE *f = dir_fopen(dir, file, mode);
-
-	if (f == NULL)
-	{
-		fprintf(stderr, "error: failed to open '%s': %s\n", file, strerror(errno));
-		fprintf(stderr, "error: One or more of the required Tyrian " TYRIAN_VERSION " data files could not be found.\n"
-		                "       Please read the README file.\n");
-		exit(EXIT_FAILURE);
-	}
-
-	return f;
-}
-
-// check if file can be opened for reading
-bool dir_file_exists(const char *dir, const char *file)
-{
-	FILE *f = dir_fopen(dir, file, "rb");
-	if (f != NULL)
-		fclose(f);
-	return (f != NULL);
-}
 
 // returns end-of-file position
 long ftell_eof(FILE *f)

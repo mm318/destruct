@@ -45,8 +45,6 @@ void JE_paramCheck(int argc, char *argv[])
 
         { 's', 's', "no-sound",          false },
 
-        { 't', 't', "data",              true },
-
         { 'n', 'n', "net",               true },
         { 256, 0,   "net-player-name",   true }, // TODO: no short codes because there should
         { 257, 0,   "net-player-number", true }, //       be a menu for entering these in the future
@@ -86,7 +84,6 @@ void JE_paramCheck(int argc, char *argv[])
                    "  -s, --no-sound               Disable audio\n"
                    "  -j, --no-joystick            Disable joystick/gamepad input\n"
                    "  -x, --no-xmas                Disable Christmas mode\n\n"
-                   "  -t, --data=DIR               Set Tyrian data directory\n\n"
                    "  -n, --net=HOST[:PORT]        Start a networked game\n"
                    "  --net-player-name=NAME       Sets local player name in a networked game\n"
                    "  --net-player-number=NUMBER   Sets local player number in a networked game\n"
@@ -99,11 +96,6 @@ void JE_paramCheck(int argc, char *argv[])
         case 's':
             // Disables sound/music usage
             audio_disabled = true;
-            break;
-
-        // set custom Tyrian data directory
-        case 't':
-            custom_data_dir = option.arg;
             break;
 
         case 'n':

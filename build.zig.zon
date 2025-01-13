@@ -5,9 +5,8 @@
     .version = "0.0.1",
 
     // This field is optional.
-    // This is currently advisory only; Zig does not yet do anything
-    // with this value.
-    .minimum_zig_version = "0.13.0",
+    // This is currently advisory only; Zig does not yet do anything with this value.
+    .minimum_zig_version = "0.14.0-dev.1911+3bf89f55c",
 
     // This field is optional.
     // Each dependency must either provide a `url` and `hash`, or a `path`.
@@ -15,8 +14,16 @@
     // Once all dependencies are fetched, `zig build` no longer requires
     // internet connectivity.
     .dependencies = .{
-        .assets = .{ .path = "assets" },
-        .SDLzig = .{ .path = "external_libs/SDL.zig" },
+        .assets = .{
+            .path = "assets",
+        },
+        .sdl = .{
+            .path = "external_libs/sdl",
+        },
+        .emsdk = .{
+            .url = "https://github.com/emscripten-core/emsdk/archive/refs/tags/3.1.64.tar.gz",
+            .hash = "12206bb1c8206a3e50d43db0711e6b9e0485758265abadf6ffccee37839bb0283c6e",
+        },
     },
 
     .paths = .{

@@ -9,7 +9,17 @@ on:
     - cron: '0 5 * * *' # run at 5 AM UTC
 
 jobs:
-  build-linux:
+  build-all-targets:
+    strategy:
+      matrix:
+        include:
+          - target: 'native'
+            optimizaton: 'Debug'
+          - target: 'native'
+            optimizaton: 'ReleaseSafe'
+          - target: 'emscripten'
+            optimizaton: 'ReleaseFast'
+
     runs-on: ubuntu-latest
 
     steps:
@@ -28,4 +38,6 @@ jobs:
         run: sdl2-config --version
 
       - name: Build game
-        run: zig build
+        run: |
+          zig build -Doptimize=${{ matrix.optimizaton }} \
+            ${{ matrix.target == 'emscripten' && '-Dtarget=wasm32-emscripten' || '' }}

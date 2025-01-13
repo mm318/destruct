@@ -155,75 +155,8 @@ bool load_opentyrian_config(void)
 	fullscreen_display = -1;
 	set_scaler_by_name("hq4x");
 	memcpy(keySettings, defaultKeySettings, sizeof(keySettings));
-	memcpy(mouseSettings, defaultMouseSettings, sizeof(mouseSettings));
-	
-	Config *config = &opentyrian_config;
-	
-	FILE *file = dir_fopen_warn(get_user_directory(), "opentyrian.cfg", "r");
-	if (file == NULL)
-		return false;
-
-	if (!config_parse(config, file))
-	{
-		fclose(file);
-		
-		return false;
-	}
-	
-	ConfigSection *section;
-	
-	section = config_find_section(config, "video", NULL);
-	if (section != NULL)
-	{
-		config_get_int_option(section, "fullscreen", &fullscreen_display);
-		
-		const char *scaler;
-		if (config_get_string_option(section, "scaler", &scaler))
-			set_scaler_by_name(scaler);
-		
-		const char *scaling_mode;
-		if (config_get_string_option(section, "scaling_mode", &scaling_mode))
-			set_scaling_mode_by_name(scaling_mode);
-	}
-
-	section = config_find_section(config, "keyboard", NULL);
-	if (section != NULL)
-	{
-		for (size_t i = 0; i < COUNTOF(keySettings); ++i)
-		{
-			const char *keyName;
-			if (config_get_string_option(section, keySettingNames[i], &keyName))
-			{
-				SDL_Scancode scancode = SDL_GetScancodeFromName(keyName);
-				if (scancode != SDL_SCANCODE_UNKNOWN)
-					keySettings[i] = scancode;
-			}
-		}
-	}
-
-	section = config_find_section(config, "mouse", NULL);
-	if (section != NULL)
-	{
-		for (size_t i = 0; i < COUNTOF(mouseSettings); ++i)
-		{
-			const char *mouseValue;
-			if (config_get_string_option(section, mouseSettingNames[i], &mouseValue))
-			{
-				for (size_t val = 1; val <= COUNTOF(mouseSettingValues); ++val)
-				{
-					if (strcmp(mouseValue, mouseSettingValues[val - 1]))
-						continue;
-
-					mouseSettings[i] = val;
-					break;
-				}
-			}
-		}
-	}
-
-	fclose(file);
-	
-	return true;
+	memcpy(mouseSettings, defaultMouseSettings, sizeof(mouseSettings));	
+	return false;
 }
 
 bool save_opentyrian_config(void)
@@ -254,12 +187,6 @@ bool save_opentyrian_config(void)
 		config_set_string_option(section, keySettingNames[i], keyName);
 	}
 
-#ifndef TARGET_WIN32
-	mkdir(get_user_directory(), 0700);
-#else
-	mkdir(get_user_directory());
-#endif
-
 	// Tyrian 2000 doesn't save mouse settings, so we do it ourselves
 	section = config_find_or_add_section(config, "mouse", NULL);
 	if (section == NULL)
@@ -268,23 +195,8 @@ bool save_opentyrian_config(void)
 	for (size_t i = 0; i < COUNTOF(mouseSettings); ++i)
 		config_set_string_option(section, mouseSettingNames[i], mouseSettingValues[mouseSettings[i] - 1]);
 
-	FILE *file = dir_fopen(get_user_directory(), "opentyrian.cfg", "w");
-	if (file == NULL)
-		return false;
-
-	config_write(config, file);
-	
-#if _POSIX_C_SOURCE >= 1 || _XOPEN_SOURCE || _POSIX_SOURCE
-	fsync(fileno(file));
-#endif
-	fclose(file);
-	
-	return true;
+	return false;
 }
-
-
-
-
 
 void JE_initProcessorType(void)
 {
@@ -469,11 +381,6 @@ void JE_decryptSaveTemp(void)
 	memcpy(&saveTemp, &s2, sizeof(s2));
 }
 
-const char *get_user_directory(void)
-{
-	return ".";
-}
-
 // for compatibility
 Uint8 joyButtonAssign[4] = {1, 4, 5, 5};
 Uint8 inputDevice_ = 0, jConfigure = 0, midiPort = 1;
@@ -486,38 +393,8 @@ void JE_loadConfiguration(void)
 	JE_byte *p;
 	int y;
 	
-	fi = dir_fopen_warn(get_user_directory(), "tyrian.cfg", "rb");
-	if (fi && ftell_eof(fi) == 28)
 	{
-		background2 = 0;
-		fread_bool_die(&background2, fi);
-		fread_u8_die(&gameSpeed, 1, fi);
-		
-		fread_u8_die(&inputDevice_, 1, fi);
-		fread_u8_die(&jConfigure, 1, fi);
-		
-		fread_u8_die(&versionNum, 1, fi);
-		
-		fread_u8_die(&processorType, 1, fi);
-		fread_u8_die(&midiPort, 1, fi);
-		fread_u8_die(&soundEffects, 1, fi);
-		fread_u8_die(&gammaCorrection, 1, fi);
-		fread_s8_die(&difficultyLevel, 1, fi);
-		
-		fread_u8_die(joyButtonAssign, 4, fi);
-		
-		fread_u16_die(&tyrMusicVolume, 1, fi);
-		fread_u16_die(&fxVolume, 1, fi);
-		
-		fread_u8_die(inputDevice, 2, fi);
-
-		fread_u8_die(dosKeySettings, 8, fi);
-		
-		fclose(fi);
-	}
-	else
-	{
-		printf("\nInvalid or missing TYRIAN.CFG! Continuing using defaults.\n\n");
+		printf("\nNot expecting TYRIAN.CFG to exist. Continuing using defaults.\n\n");
 		
 		soundEffects = 1;
 		memcpy(&dosKeySettings, &defaultDosKeySettings, sizeof(dosKeySettings));
@@ -539,115 +416,6 @@ void JE_loadConfiguration(void)
 	
 	set_volume(tyrMusicVolume, fxVolume);
 	
-	fi = dir_fopen_warn(get_user_directory(), "tyrian.sav", "rb");
-	if (fi)
-	{
-
-		fseek(fi, 0, SEEK_SET);
-		fread_die(saveTemp, 1, sizeof(saveTemp), fi);
-		JE_decryptSaveTemp();
-
-		/* SYN: The original mostly blasted the save file into raw memory. However, our lives are not so
-		   easy, because the C struct is necessarily a different size. So instead we have to loop
-		   through each record and load fields manually. *emo tear* :'( */
-
-		p = saveTemp;
-		for (z = 0; z < SAVE_FILES_NUM; z++)
-		{
-			memcpy(&saveFiles[z].encode, p, sizeof(JE_word)); p += 2;
-			saveFiles[z].encode = SDL_SwapLE16(saveFiles[z].encode);
-			
-			memcpy(&saveFiles[z].level, p, sizeof(JE_word)); p += 2;
-			saveFiles[z].level = SDL_SwapLE16(saveFiles[z].level);
-			
-			memcpy(&saveFiles[z].items, p, sizeof(JE_PItemsType)); p += sizeof(JE_PItemsType);
-			
-			memcpy(&saveFiles[z].score, p, sizeof(JE_longint)); p += 4;
-			saveFiles[z].score = SDL_SwapLE32(saveFiles[z].score);
-			
-			memcpy(&saveFiles[z].score2, p, sizeof(JE_longint)); p += 4;
-			saveFiles[z].score2 = SDL_SwapLE32(saveFiles[z].score2);
-			
-			/* SYN: Pascal strings are prefixed by a byte holding the length! */
-			memset(&saveFiles[z].levelName, 0, sizeof(saveFiles[z].levelName));
-			memcpy(&saveFiles[z].levelName, &p[1], *p);
-			p += 10;
-			
-			/* This was a BYTE array, not a STRING, in the original. Go fig. */
-			memcpy(&saveFiles[z].name, p, 14);
-			p += 14;
-			
-			memcpy(&saveFiles[z].cubes, p, sizeof(JE_byte)); p++;
-			memcpy(&saveFiles[z].power, p, sizeof(JE_byte) * 2); p += 2;
-			memcpy(&saveFiles[z].episode, p, sizeof(JE_byte)); p++;
-			memcpy(&saveFiles[z].lastItems, p, sizeof(JE_PItemsType)); p += sizeof(JE_PItemsType);
-			memcpy(&saveFiles[z].difficulty, p, sizeof(JE_byte)); p++;
-			memcpy(&saveFiles[z].secretHint, p, sizeof(JE_byte)); p++;
-			memcpy(&saveFiles[z].input1, p, sizeof(JE_byte)); p++;
-			memcpy(&saveFiles[z].input2, p, sizeof(JE_byte)); p++;
-			
-			/* booleans were 1 byte in pascal -- working around it */
-			Uint8 temp;
-			memcpy(&temp, p, 1); p++;
-			saveFiles[z].gameHasRepeated = temp != 0;
-			
-			memcpy(&saveFiles[z].initialDifficulty, p, sizeof(JE_byte)); p++;
-			
-			memcpy(&saveFiles[z].highScore1, p, sizeof(JE_longint)); p += 4;
-			saveFiles[z].highScore1 = SDL_SwapLE32(saveFiles[z].highScore1);
-			
-			memcpy(&saveFiles[z].highScore2, p, sizeof(JE_longint)); p += 4;
-			saveFiles[z].highScore2 = SDL_SwapLE32(saveFiles[z].highScore2);
-			
-			memset(&saveFiles[z].highScoreName, 0, sizeof(saveFiles[z].highScoreName));
-			memcpy(&saveFiles[z].highScoreName, &p[1], *p);
-			p += 30;
-			
-			memcpy(&saveFiles[z].highScoreDiff, p, sizeof(JE_byte)); p++;
-		}
-
-		/* SYN: This is truncating to bytes. I have no idea what this is doing or why. */
-		/* TODO: Figure out what this is about and make sure it isn't broken. */
-		editorLevel = (saveTemp[SIZEOF_SAVEGAMETEMP - 5] << 8) | saveTemp[SIZEOF_SAVEGAMETEMP - 6];
-
-		// T2K High Scores are unencrypted after saveTemp
-		for (z = 0; z < 10; ++z)
-		{
-			JE_byte len;
-
-			for (y = 0; y < 3; ++y)
-			{
-				fread_s32_die(&t2kHighScores[z][y].score, 1, fi);
-				t2kHighScores[z][y].score = SDL_SwapLE32(t2kHighScores[z][y].score);
-
-				fread_u8_die(&len, 1, fi);
-				fread_die(t2kHighScores[z][y].playerName, 1, 29, fi);
-
-				t2kHighScores[z][y].playerName[len] = '\0';
-				fread_u8_die(&t2kHighScores[z][y].difficulty, 1, fi);
-			}
-		}
-		for (z = 10; z < 20; ++z)
-		{
-			JE_byte len;
-
-			for (y = 0; y < 3; ++y)
-			{
-				fread_s32_die(&t2kHighScores[z][y].score, 1, fi);
-				t2kHighScores[z][y].score = SDL_SwapLE32(t2kHighScores[z][y].score);
-
-				fseek(fi, 4, SEEK_CUR); // Unknown long int that seems to have no effect
-				fread_u8_die(&len, 1, fi);
-
-				fread_die(t2kHighScores[z][y].playerName, 1, 29, fi);
-				t2kHighScores[z][y].playerName[len] = '\0';
-				fread_u8_die(&t2kHighScores[z][y].difficulty, 1, fi);
-			}
-		}
-
-		fclose(fi);
-	}
-	else
 	{
 		/* We didn't have a save file! Let's make up random stuff! */
 		editorLevel = 800;
@@ -780,92 +548,7 @@ void JE_saveConfiguration(void)
 	saveTemp[SIZEOF_SAVEGAMETEMP - 5] = editorLevel;
 	
 	JE_encryptSaveTemp();
-	
-#ifndef TARGET_WIN32
-	mkdir(get_user_directory(), 0700);
-#else
-	mkdir(get_user_directory());
-#endif
-	
-	f = dir_fopen_warn(get_user_directory(), "tyrian.sav", "wb");
-	if (f != NULL)
-	{
-		fwrite_die(saveTemp, 1, sizeof(saveTemp), f);
-
-		// T2K High Scores are unencrypted after saveTemp
-		for (z = 0; z < 10; ++z)
-		{
-			JE_longint templi;
-			JE_byte len;
-
-			for (int y = 0; y < 3; ++y)
-			{
-				templi = SDL_SwapLE32(t2kHighScores[z][y].score);
-				len = strlen(t2kHighScores[z][y].playerName);
-				fwrite_s32_die(&templi, f);
-
-				fwrite_u8_die(&len, 1, f);
-				fwrite_die(t2kHighScores[z][y].playerName, 1, 29, f);
-				fwrite_u8_die(&t2kHighScores[z][y].difficulty, 1, f);
-			}
-		}
-		for (z = 10; z < 20; ++z)
-		{
-			JE_longint templi;
-			JE_byte len;
-
-			for (int y = 0; y < 3; ++y)
-			{
-				templi = SDL_SwapLE32(t2kHighScores[z][y].score);
-				len = strlen(t2kHighScores[z][y].playerName);
-				fwrite_s32_die(&templi, f);
-
-				templi = 0x12345678;
-				fwrite_s32_die(&templi, f); // Unknown long int that seems to have no effect
-
-				fwrite_u8_die(&len, 1, f);
-				fwrite_die(t2kHighScores[z][y].playerName, 1, 29, f);
-				fwrite_u8_die(&t2kHighScores[z][y].difficulty, 1, f);
-			}
-		}
-
-#if _POSIX_C_SOURCE >= 1 || _XOPEN_SOURCE || _POSIX_SOURCE
-		fsync(fileno(f));
-#endif
-		fclose(f);
-	}
-	
 	JE_decryptSaveTemp();
-	
-	f = dir_fopen_warn(get_user_directory(), "tyrian.cfg", "wb");
-	if (f != NULL)
-	{
-		fwrite_bool_die(&background2, f);
-		fwrite_u8_die(&gameSpeed, 1, f);
-		
-		fwrite_u8_die(&inputDevice_, 1, f);
-		fwrite_u8_die(&jConfigure, 1, f);
-		
-		fwrite_u8_die(&versionNum, 1, f);
-		fwrite_u8_die(&processorType, 1, f);
-		fwrite_u8_die(&midiPort, 1, f);
-		fwrite_u8_die(&soundEffects, 1, f);
-		fwrite_u8_die(&gammaCorrection, 1, f);
-		fwrite_s8_die(&difficultyLevel, 1, f);
-		fwrite_u8_die(joyButtonAssign, 4, f);
-		
-		fwrite_u16_die(&tyrMusicVolume, f);
-		fwrite_u16_die(&fxVolume, f);
-		
-		fwrite_u8_die(inputDevice, 2, f);
-		
-		fwrite_u8_die(dosKeySettings, 8, f);
-		
-#if _POSIX_C_SOURCE >= 1 || _XOPEN_SOURCE || _POSIX_SOURCE
-		fsync(fileno(f));
-#endif
-		fclose(f);
-	}
 	
 	save_opentyrian_config();
 }
