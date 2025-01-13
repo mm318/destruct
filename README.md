@@ -17,13 +17,13 @@ All commands should be run from the newly downloaded `destruct` directory.
 
 To build:
 ```bash
-zig build                           # for debug build
-zig build -Doptimize=ReleaseSafe    # for release build (recommended)
+zig build -Doptimize=Debug -Dtarget=wasm32-emscripten       # for debug build
+zig build -Doptimize=ReleaseFast -Dtarget=wasm32-emscripten # for release build (recommended)
 ```
 
 For convenience, to run:
 ```bash
-zig build -Doptimize=ReleaseSafe run
+zig build -Doptimize=ReleaseFast -Dtarget=wasm32-emscripten run
 ```
 
 ### Develop

@@ -133,7 +133,6 @@ pub fn build(b: *std.Build) !void {
             .lib_main = exe,
             .target = resolved_target,
             .optimize = optimize,
-            .use_pthreads = true,
         });
 
         // ...and a special run step to run the build result via emrun
@@ -234,11 +233,11 @@ pub const EmLinkOptions = struct {
     lib_main: *Build.Step.Compile, // the actual Zig code must be compiled to a static link library
     release_use_closure: bool = true,
     release_use_lto: bool = true,
-    use_emmalloc: bool = false,
-    use_pthreads: bool = false,
+    use_emmalloc: bool = true,
+    use_pthreads: bool = true,
     use_webgl2: bool = false,
     use_webgpu: bool = false,
-    use_filesystem: bool = true,
+    use_filesystem: bool = false,
     shell_file_path: ?[]const u8 = null,
     extra_args: []const []const u8 = &.{},
 };
@@ -269,6 +268,7 @@ fn emLinkStep(b: *Build, options: EmLinkOptions) !*Build.Step.Run {
         }
         if (options.release_use_lto) {
             try emcc_cmd.append("-flto");
+            try emcc_cmd.append("-Wl,-u,_emscripten_run_callback_on_thread");
         }
         if (options.release_use_closure) {
             try emcc_cmd.append("--closure");
@@ -305,15 +305,14 @@ fn emLinkStep(b: *Build, options: EmLinkOptions) !*Build.Step.Run {
     // NOTE(jae): 2024-02-24
     // Needed or zig crashes with "Aborted(Cannot use convertFrameToPC (needed by __builtin_return_address) without -sUSE_OFFSET_CONVERTER)"
     // for os_tag == .emscripten.
-    //
     // However currently then it crashes when trying to call "std.debug.captureStackTrace"
     try emcc_cmd.append("-sUSE_OFFSET_CONVERTER=1");
     try emcc_cmd.append("-sFULL-ES3=1");
     try emcc_cmd.append("-sUSE_GLFW=3");
     try emcc_cmd.append("-sASYNCIFY");
 
-    try emcc_cmd.append("--embed-file");
-    try emcc_cmd.append("assets@/wasm_data");
+    // try emcc_cmd.append("--embed-file");
+    // try emcc_cmd.append("assets@/wasm_data");
 
     try emcc_cmd.append(b.fmt("-o{s}/web/{s}.html", .{ b.install_path, options.lib_main.name }));
     for (options.extra_args) |arg| {
