@@ -392,10 +392,10 @@ void JE_loadConfiguration(void)
 	int z;
 	JE_byte *p;
 	int y;
-	
+
 	{
-		printf("\nNot expecting TYRIAN.CFG to exist. Continuing using defaults.\n\n");
-		
+		printf("Not expecting TYRIAN.CFG to exist. Continuing using defaults.\n\n");
+
 		soundEffects = 1;
 		memcpy(&dosKeySettings, &defaultDosKeySettings, sizeof(dosKeySettings));
 		background2 = true;

@@ -46,7 +46,7 @@ extern SDL_Surface *VGAScreen2;
 extern SDL_Window *main_window;
 extern SDL_PixelFormat *main_window_tex_format;
 
-void init_video(void);
+void init_video(const char * title);
 
 void video_on_win_resize(void);
 void reinit_fullscreen(int new_display);
