@@ -110,14 +110,17 @@ pub fn build(b: *std.Build) !void {
     exe.addCSourceFiles(.{ .files = &tyrian_srcs, .flags = c_flags });
     exe.root_module.addIncludePath(b.path("src/lib/"));
 
-    const assets = b.dependency("assets", .{});
+    const assets = b.dependency("assets", .{
+        .target = resolved_target,
+        .optimize = .ReleaseFast,
+    });
     exe.root_module.addImport("assets", assets.module("root"));
     exe.step.dependOn(&assets.artifact("assets").step); // force the "assets" module to build
 
     {
         const sdl_dep = b.dependency("sdl", .{
-            .optimize = .ReleaseFast,
             .target = resolved_target,
+            .optimize = .ReleaseFast,
             .c_flags = c_flags,
         });
         if (resolved_target.query.isNativeOs() and resolved_target.result.os.tag == .linux) {
@@ -134,13 +137,13 @@ pub fn build(b: *std.Build) !void {
 
     if (resolved_target.result.os.tag == .emscripten) {
         const link_step = try emLinkStep(b, .{
-            .lib_main = exe,
             .target = resolved_target,
             .optimize = optimize,
+            .lib_main = exe,
         });
 
         // ...and a special run step to run the build result via emrun
-        var run = emRunStep(b, .{ .name = "destruct" });
+        var run = emRunStep(b, .{ .web_path = b.getInstallPath(.prefix, "web") });
         run.step.dependOn(&link_step.step);
 
         const run_cmd = b.step("run", "Run the demo for web via emrun");
@@ -148,8 +151,10 @@ pub fn build(b: *std.Build) !void {
     } else {
         b.installArtifact(exe);
 
-        const run = b.step("run", "Run the demo for desktop");
         const run_cmd = b.addRunArtifact(exe);
+        run_cmd.step.dependOn(b.getInstallStep());
+
+        const run = b.step("run", "Run the demo for desktop");
         run.dependOn(&run_cmd.step);
     }
 }
@@ -244,7 +249,6 @@ pub const EmLinkOptions = struct {
     use_filesystem: bool = false,
     use_asyncify: bool = true,
     shell_file_path: ?[]const u8 = null,
-    extra_args: []const []const u8 = &.{},
 };
 
 fn emLinkStep(b: *Build, options: EmLinkOptions) !*Build.Step.Run {
@@ -276,7 +280,8 @@ fn emLinkStep(b: *Build, options: EmLinkOptions) !*Build.Step.Run {
             try emcc_cmd.append("-Wl,-u,_emscripten_run_callback_on_thread");
         }
         if (options.release_use_closure) {
-            try emcc_cmd.append("--closure 1");
+            try emcc_cmd.append("--closure");
+            try emcc_cmd.append("1");
         }
     }
     if (options.use_emmalloc) {
@@ -318,13 +323,9 @@ fn emLinkStep(b: *Build, options: EmLinkOptions) !*Build.Step.Run {
         try emcc_cmd.append("-sASYNCIFY");
     }
 
-    // try emcc_cmd.append("--embed-file");
-    // try emcc_cmd.append("assets@/wasm_data");
-
-    try emcc_cmd.append(b.fmt("-o{s}/web/{s}.html", .{ b.install_path, options.lib_main.name }));
-    for (options.extra_args) |arg| {
-        try emcc_cmd.append(arg);
-    }
+    try emcc_cmd.append(b.fmt("-o{s}/{s}.html", .{ b.getInstallPath(.prefix, "web"), options.lib_main.name }));
+    try emcc_cmd.append("--shell-file");
+    try emcc_cmd.append("web_assets/shell_minimal.html");
 
     const emcc = b.addSystemCommand(emcc_cmd.items);
     emcc.setName("emcc"); // hide emcc path
@@ -336,7 +337,10 @@ fn emLinkStep(b: *Build, options: EmLinkOptions) !*Build.Step.Run {
     }
 
     // get sysroot include
-    const sysroot_include_path = if (b.sysroot) |sysroot| b.pathJoin(&.{ sysroot, "include" }) else @panic("unable to get sysroot path");
+    const sysroot_include_path = if (b.sysroot) |sysroot|
+        b.pathJoin(&.{ sysroot, "include" })
+    else
+        @panic("unable to get sysroot path");
 
     // add the main lib, and then scan for library dependencies and add those too
     emcc.addArtifactArg(options.lib_main);
@@ -364,21 +368,38 @@ fn emLinkStep(b: *Build, options: EmLinkOptions) !*Build.Step.Run {
             }
         }
     }
-    b.getInstallStep().dependOn(&emcc.step);
-    return emcc;
+
+    const install_coi = b.addInstallFile(b.path("web_assets/coi-serviceworker.js"), "web/coi-serviceworker.js");
+
+    const install_index = b.addSystemCommand(&.{
+        "mv",
+        b.fmt("{s}/{s}.html", .{ b.getInstallPath(.prefix, "web"), options.lib_main.name }),
+        b.fmt("{s}/index.html", .{b.getInstallPath(.prefix, "web")}),
+    });
+
+    install_index.step.dependOn(&emcc.step);
+    install_index.step.dependOn(&install_coi.step);
+    b.getInstallStep().dependOn(&install_index.step);
+
+    return install_index;
 }
 
 // build a run step which uses the emsdk emrun command to run a build target in the browser
 pub const EmRunOptions = struct {
-    name: []const u8,
+    web_path: []const u8,
 };
 
 fn emRunStep(b: *std.Build, options: EmRunOptions) *std.Build.Step.Run {
     const emrun_path = b.pathJoin(&.{ emSdkPath(b), "upstream", "emscripten", "emrun" });
-    const web_path = b.pathJoin(&.{ ".", "zig-out", "web", options.name });
     // NOTE(jae): 2024-02-24
     // Default browser to chrome as it has the better WASM debugging tools / UX
-    const emrun = b.addSystemCommand(&.{ emrun_path, "--serve_after_exit", "--serve_after_close", "--browser=chrome", b.fmt("{s}.html", .{web_path}) });
+    const emrun = b.addSystemCommand(&.{
+        emrun_path,
+        "--serve_after_exit",
+        "--serve_after_close",
+        "--browser=chrome",
+        options.web_path,
+    });
     return emrun;
 }
 

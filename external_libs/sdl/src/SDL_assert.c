@@ -153,6 +153,10 @@ static SDL_NORETURN void SDL_AbortAssertion(void)
     SDL_ExitProcess(42);
 }
 
+#if defined(__EMSCRIPTEN__)
+EM_JS_DEPS(sdlassert, "$allocate,$ALLOC_NORMAL,$intArrayFromString");
+#endif
+
 static SDL_assert_state SDLCALL
 SDL_PromptAssertion(const SDL_assert_data *data, void *userdata)
 {
