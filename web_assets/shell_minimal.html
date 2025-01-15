@@ -3,14 +3,40 @@
   <head>
     <meta charset="utf-8">
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <title>Emscripten-Generated Code</title>
+    <title>destruct</title>
     <style>
-      .emscripten { padding-right: 0; margin-left: auto; margin-right: auto; display: block; }
-      textarea.emscripten { font-family: monospace; width: 80%; }
-      div.emscripten { text-align: center; }
-      div.emscripten_border { border: 1px solid black; }
-      /* the canvas *must not* have any border or padding, or mouse coords will be wrong */
-      canvas.emscripten { border: 0px none; background-color: black; }
+      .emscripten {
+        padding-right: 0;
+        margin-left: auto;
+        margin-right: auto;
+        display: block;
+      }
+      textarea.emscripten { 
+        width: 100%;
+        height: 200px;
+        margin: 0 auto;
+        margin-top: 10px;
+        border-left: 0;
+        border-right: 0px;
+        padding-left: 0;
+        padding-right: 0;
+        display: block;
+        background-color: #000;
+        color: #fff;
+        font-family: 'Lucida Console',Monaco,monospace;
+        outline: 0;
+      }
+      div.emscripten {
+        text-align: center;
+      }
+      div.emscripten_border {
+        border: 1px solid black;
+      }
+      canvas.emscripten /* the canvas *must not* have any border or padding, or mouse coords will be wrong */ {
+        border: 0px none;
+        background-color:
+        black;
+      }
 
       .spinner {
         height: 50px;

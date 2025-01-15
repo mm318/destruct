@@ -1,4 +1,6 @@
 const std = @import("std");
+const builtin = @import("builtin");
+
 const SDL = @import("sdl2");
 
 const c = @cImport({
@@ -17,6 +19,29 @@ const c = @cImport({
 });
 
 const destruct = @import("destruct.zig");
+
+pub fn logFn(
+    comptime _: std.log.Level,
+    comptime scope: @Type(.enum_literal),
+    comptime format: []const u8,
+    args: anytype,
+) void {
+    const prefix2 = if (scope == .default) "" else "(" ++ @tagName(scope) ++ "): ";
+
+    var buffer: [128]u8 = undefined;
+    const c_string = std.fmt.bufPrintZ(&buffer, prefix2 ++ format ++ "\n", args) catch &buffer;
+    _ = c.printf(c_string.ptr);
+}
+
+pub const std_options: std.Options = .{
+    .log_level = switch (builtin.mode) {
+        .Debug => .debug,
+        else => .info,
+    },
+
+    // Overwrite default log handler
+    .logFn = logFn,
+};
 
 pub fn main() u8 {
     c.mt_srand(@intCast(c.time(0)));
@@ -52,7 +77,7 @@ pub fn main() u8 {
         c.JE_saveConfiguration();
     }
 
-    c.init_video();
+    c.init_video("destruct");
     defer c.deinit_video();
 
     c.init_keyboard();

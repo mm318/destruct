@@ -61,7 +61,7 @@ static void window_center_in_display(int display_index);
 static void calc_dst_render_rect(SDL_Surface *src_surface, SDL_Rect *dst_rect);
 static void scale_and_flip(SDL_Surface *);
 
-void init_video(void)
+void init_video(const char * title)
 {
 	if (SDL_WasInit(SDL_INIT_VIDEO))
 		return;
@@ -97,7 +97,7 @@ void init_video(void)
 
 	// Create the window with a temporary initial size, hidden until we set up the
 	// scaler and find the true window size
-	main_window = SDL_CreateWindow(opentyrian_str,
+	main_window = SDL_CreateWindow(title,
 		SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
 		vga_width, vga_height, SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIDDEN);
 
