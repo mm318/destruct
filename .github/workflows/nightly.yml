@@ -26,16 +26,13 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt update
-          sudo apt install -y libsdl2-dev libsdl2-image-dev libwebp-dev
+          sudo apt install -y libgles-dev libglx-dev libpulse-dev
 
       - uses: actions/checkout@v4
 
       - uses: mlugg/setup-zig@v1
         with:
           version: 0.14.0-dev.1911+3bf89f55c
-
-      - name: SDL version
-        run: sdl2-config --version
 
       - name: Build game
         run: |

@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2023 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2025 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -53,18 +53,17 @@ _m_prefetch(void *__P)
 #ifndef __MMX__
 #define __MMX__
 #endif
+/*
 #ifndef __3dNOW__
 #define __3dNOW__
 #endif
+*/
 #endif
 #ifndef __SSE__
 #define __SSE__
 #endif
 #ifndef __SSE2__
 #define __SSE2__
-#endif
-#ifndef __SSE3__
-#define __SSE3__
 #endif
 #elif defined(__MINGW64_VERSION_MAJOR)
 #include <intrin.h>

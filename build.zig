@@ -121,18 +121,11 @@ pub fn build(b: *std.Build) !void {
         const sdl_dep = b.dependency("sdl", .{
             .target = resolved_target,
             .optimize = .ReleaseFast,
-            .c_flags = c_flags,
+            // .c_flags = c_flags,
         });
-        if (resolved_target.query.isNativeOs() and resolved_target.result.os.tag == .linux) {
-            // The SDL package doesn't work for Linux yet, so we rely on system
-            // packages for now.
-            exe.linkSystemLibrary("SDL2");
-            exe.linkLibC();
-        } else {
-            exe.linkLibrary(sdl_dep.artifact("SDL2"));
-        }
+        exe.linkLibrary(sdl_dep.artifact("SDL2"));
+        exe.root_module.addIncludePath(sdl_dep.artifact("SDL2").getEmittedIncludeTree().path(b, "SDL2/"));
         exe.root_module.addImport("sdl2", sdl_dep.module("sdl"));
-        exe.root_module.addIncludePath(sdl_dep.path("include/"));
     }
 
     if (resolved_target.result.os.tag == .emscripten) {

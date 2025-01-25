@@ -25,7 +25,8 @@
 #include "params.h"
 #include "vga256d.h"
 
-#include "SDL.h"
+#include <string.h>
+
 
 Sint16 *soundSamples[SOUND_COUNT] = { NULL }; /* [1..soundnum + 9] */  // FKA digiFx
 size_t soundSampleCount[SOUND_COUNT] = { 0 }; /* [1..soundnum + 9] */  // FKA fxSize
