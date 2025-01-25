@@ -30,7 +30,7 @@ zig build run
 
 Tested on Ubuntu 20.04 using zig 0.14.0-dev.1911+3bf89f55c (2024.10.0-mach).
 
-#### Targeting Web Browser (experimental)
+#### Targeting Web Browser
 
 To build:
 ```bash
@@ -42,6 +42,8 @@ For convenience, to run:
 ```bash
 zig build -Doptimize=ReleaseFast -Dtarget=wasm32-emscripten run
 ```
+
+Tested on Ubuntu 20.04 using zig 0.14.0-dev.1911+3bf89f55c (2024.10.0-mach).
 
 Thanks to [sdl-zig-demo-emscripten](https://github.com/silbinarywolf/sdl-zig-demo-emscripten) for a great starting point!
 
