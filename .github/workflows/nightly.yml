@@ -26,7 +26,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt update
-          sudo apt install -y libgles-dev libglx-dev libpulse-dev
+          sudo apt install -y libxext-dev libgles-dev libglx-dev libpulse-dev
 
       - uses: actions/checkout@v4
 
