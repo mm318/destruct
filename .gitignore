@@ -1,4 +1,10 @@
 .zig-cache/
 zig-out/
+
 *.cfg
 *.sav
+
+assets/*
+!assets/*.zig
+!assets/*.zon
+!assets/*.zip

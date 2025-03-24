@@ -5,28 +5,26 @@ pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
     const t = target.result;
 
-    const is_shared_library = t.isAndroid();
-    const lib = if (!is_shared_library) b.addStaticLibrary(.{
+    const is_shared_library = t.abi.isAndroid();
+    const lib = b.addLibrary(.{
         .name = "SDL2",
-        .target = target,
-        .optimize = optimize,
-        .link_libc = true,
-    }) else b.addSharedLibrary(.{
-        .name = "SDL2",
-        .target = target,
-        .optimize = optimize,
-        .link_libc = true,
+        .version = .{ .major = 2, .minor = 30, .patch = 11 },
+        .linkage = if (is_shared_library) .dynamic else .static,
+        .root_module = b.createModule(.{
+            .target = target,
+            .optimize = optimize,
+        }),
     });
 
     const sdl_include_path = b.path("include");
     lib.addCSourceFiles(.{ .files = &generic_src_files });
-    lib.defineCMacro("SDL_USE_BUILTIN_OPENGL_DEFINITIONS", "1");
-    lib.defineCMacro("HAVE_GCC_ATOMICS", "1");
-    lib.defineCMacro("HAVE_GCC_SYNC_LOCK_TEST_AND_SET", "1");
+    lib.root_module.addCMacro("SDL_USE_BUILTIN_OPENGL_DEFINITIONS", "1");
+    lib.root_module.addCMacro("HAVE_GCC_ATOMICS", "1");
+    lib.root_module.addCMacro("HAVE_GCC_SYNC_LOCK_TEST_AND_SET", "1");
     lib.linkLibC();
     switch (t.os.tag) {
         .windows => {
-            lib.defineCMacro("SDL_STATIC_LIB", "");
+            lib.root_module.addCMacro("SDL_STATIC_LIB", "");
             lib.addCSourceFiles(.{ .files = &windows_src_files });
             lib.linkSystemLibrary("user32");
             lib.linkSystemLibrary("shell32");
@@ -58,12 +56,12 @@ pub fn build(b: *std.Build) void {
             lib.linkFramework("Foundation");
         },
         .emscripten => {
-            lib.defineCMacro("__EMSCRIPTEN_PTHREADS__ ", "1");
-            lib.defineCMacro("USE_SDL", "2");
+            lib.root_module.addCMacro("__EMSCRIPTEN_PTHREADS__ ", "1");
+            lib.root_module.addCMacro("USE_SDL", "2");
             lib.addCSourceFiles(.{ .files = &emscripten_src_files });
         },
         else => {
-            if (t.isAndroid()) {
+            if (t.abi.isAndroid()) {
                 lib.root_module.addCSourceFiles(.{
                     .files = &android_src_files,
                 });
@@ -104,7 +102,7 @@ pub fn build(b: *std.Build) void {
 
     const use_pregenerated_config = switch (t.os.tag) {
         .windows, .macos, .emscripten => true,
-        .linux => t.isAndroid(),
+        .linux => t.abi.isAndroid(),
         else => false,
     };
 
@@ -114,7 +112,7 @@ pub fn build(b: *std.Build) void {
         lib.addCSourceFiles(.{ .files = render_driver_sw.src_files });
     } else {
         // causes pregenerated SDL_config.h to assert an error
-        lib.defineCMacro("USING_GENERATED_CONFIG_H", "");
+        lib.root_module.addCMacro("USING_GENERATED_CONFIG_H", "");
 
         var files = std.ArrayList([]const u8).init(b.allocator);
         defer files.deinit();
@@ -154,7 +152,7 @@ pub fn build(b: *std.Build) void {
         lib.installHeader(revision_header.getOutput(), "SDL2/SDL_revision.h");
     }
 
-    const use_hidapi = b.option(bool, "use_hidapi", "Use hidapi shared library") orelse t.isAndroid();
+    const use_hidapi = b.option(bool, "use_hidapi", "Use hidapi shared library") orelse t.abi.isAndroid();
 
     if (use_hidapi) {
         const hidapi_lib = b.addSharedLibrary(.{
@@ -996,7 +994,7 @@ fn applyOptions(
     inline for (options) |option| {
         const enabled = if (b.option(bool, option.name, option.desc)) |o| o else option.default;
         for (option.c_macros) |name| {
-            lib.defineCMacro(name, if (enabled) "1" else "0");
+            lib.root_module.addCMacro(name, if (enabled) "1" else "0");
         }
         for (option.sdl_configs) |config| {
             config_header.values.put(config, .{ .int = if (enabled) 1 else 0 }) catch @panic("OOM");
@@ -1177,7 +1175,7 @@ fn configHeader(b: *std.Build, t: std.Target) *std.Build.Step.ConfigHeader {
         .HAVE_SETJMP = 1,
         .HAVE_NANOSLEEP = 1,
         .HAVE_SYSCONF = 1,
-        .HAVE_SYSCTLBYNAME = t.isDarwin(),
+        .HAVE_SYSCTLBYNAME = t.os.tag.isDarwin(),
         .HAVE_CLOCK_GETTIME = 1,
         .HAVE_GETPAGESIZE = 1,
         .HAVE_MPROTECT = 1,

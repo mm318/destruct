@@ -46,69 +46,28 @@ pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    // Setup sysroot with Emscripten so dependencies know where the system include files are
-    const resolved_target = if (target.result.os.tag == .emscripten) blk: {
-        const emsdk_sysroot = b.pathJoin(&.{ emSdkPath(b), "upstream", "emscripten", "cache", "sysroot" });
-        b.sysroot = emsdk_sysroot;
+    const target_emscripten = (target.result.os.tag == .emscripten);
+    const emsdk_dep = b.dependency("emsdk", .{});
 
-        var target_query = target.query;
-        for (target.result.cpu.arch.allFeaturesList(), 0..) |feature, index_usize| {
-            const index = @as(std.Target.Cpu.Feature.Set.Index, @intCast(index_usize));
-            if (feature.llvm_name) |llvm_name| {
-                if (std.mem.eql(u8, llvm_name, "atomics") or std.mem.eql(u8, llvm_name, "bulk-memory")) {
-                    target_query.cpu_features_add.addFeature(index);
-                }
-            }
-        }
-
-        const new_target = b.resolveTargetQuery(std.Target.Query{
-            .cpu_arch = target_query.cpu_arch,
-            .cpu_model = target_query.cpu_model,
-            .cpu_features_add = target_query.cpu_features_add,
-            .cpu_features_sub = target_query.cpu_features_sub,
-            .os_tag = .emscripten,
-            .os_version_min = target_query.os_version_min,
-            .os_version_max = target_query.os_version_max,
-            .glibc_version = target_query.glibc_version,
-            .abi = target_query.abi,
-            .dynamic_linker = target_query.dynamic_linker,
-            .ofmt = target_query.ofmt,
-        });
-
-        break :blk new_target;
-    } else blk: {
-        break :blk target;
-    };
-
-    std.log.info("resolved target: arch {s}, cpu_model {s}, os {s}", .{
-        resolved_target.result.cpu.arch.genericName(),
-        resolved_target.result.cpu.model.name,
-        @tagName(resolved_target.result.os.tag),
-    });
-    for (resolved_target.result.cpu.arch.allFeaturesList(), 0..) |feature, index_usize| {
-        const index = @as(std.Target.Cpu.Feature.Set.Index, @intCast(index_usize));
-        const is_enabled = resolved_target.result.cpu.features.isEnabled(index);
-        if (feature.llvm_name) |llvm_name| {
-            std.log.info("    feature {s} {s}", .{ llvm_name, if (is_enabled) "enabled" else "disabled" });
-        } else {
-            std.log.info("    feature (unnamed) {s}", .{if (is_enabled) "enabled" else "disabled"});
-        }
-    }
-
-    const exe = if (resolved_target.result.os.tag == .emscripten) try compileEmscripten(
+    const exe = if (target_emscripten) try compileEmscripten(
         b,
+        emsdk_dep,
         "destruct",
         "src/main.zig",
-        resolved_target,
+        target,
         optimize,
     ) else b.addExecutable(.{
         .name = "destruct",
-        .root_source_file = b.path("src/main.zig"),
-        .target = resolved_target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/main.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
     exe.addCSourceFiles(.{ .files = &tyrian_srcs, .flags = c_flags });
-    exe.root_module.addIncludePath(b.path("src/lib/"));
+    exe.addIncludePath(b.path("src/lib/"));
+
+    const resolved_target = exe.root_module.resolved_target.?;
 
     const assets = b.dependency("assets", .{
         .target = resolved_target,
@@ -124,19 +83,20 @@ pub fn build(b: *std.Build) !void {
             // .c_flags = c_flags,
         });
         exe.linkLibrary(sdl_dep.artifact("SDL2"));
-        exe.root_module.addIncludePath(sdl_dep.artifact("SDL2").getEmittedIncludeTree().path(b, "SDL2/"));
+        exe.addIncludePath(sdl_dep.artifact("SDL2").getEmittedIncludeTree().path(b, "SDL2/"));
         exe.root_module.addImport("sdl2", sdl_dep.module("sdl"));
     }
 
-    if (resolved_target.result.os.tag == .emscripten) {
-        const link_step = try emLinkStep(b, .{
+    if (target_emscripten) {
+        const link_step = try emLinkStep(b, emsdk_dep, .{
             .target = resolved_target,
             .optimize = optimize,
             .lib_main = exe,
+            .shell_file_path = b.path("web_assets/shell_minimal.html"),
         });
 
         // ...and a special run step to run the build result via emrun
-        var run = emRunStep(b, .{ .web_path = b.getInstallPath(.prefix, "web") });
+        var run = emRunStep(b, .{ .name = "index", .emsdk = emsdk_dep });
         run.step.dependOn(&link_step.step);
 
         const run_cmd = b.step("run", "Run the demo for web via emrun");
@@ -153,83 +113,111 @@ pub fn build(b: *std.Build) !void {
 }
 
 // Creates the static library to build a project for Emscripten.
-pub fn compileEmscripten(
+fn compileEmscripten(
     b: *std.Build,
+    emsdk: *std.Build.Dependency,
     name: []const u8,
     root_source_file: []const u8,
-    resolved_target: std.Build.ResolvedTarget,
+    target: std.Build.ResolvedTarget,
     optimize: std.builtin.Mode,
 ) !*std.Build.Step.Compile {
-    // The project is built as a library and linked later.
-    const exe_lib = b.addStaticLibrary(.{
-        .name = name,
-        .root_source_file = b.path(root_source_file),
-        .target = resolved_target,
-        .optimize = optimize,
+    // Setup sysroot with Emscripten so dependencies know where the system include files are
+    const emsdk_sysroot = emSdkLazyPath(b, emsdk, &.{ "upstream", "emscripten", "cache", "sysroot" });
+    b.sysroot = emsdk_sysroot.getPath(b);
+
+    var target_query = target.query;
+    for (target.result.cpu.arch.allFeaturesList(), 0..) |feature, index_usize| {
+        const index = @as(std.Target.Cpu.Feature.Set.Index, @intCast(index_usize));
+        if (feature.llvm_name) |llvm_name| {
+            if (std.mem.eql(u8, llvm_name, "atomics") or std.mem.eql(u8, llvm_name, "bulk-memory")) {
+                target_query.cpu_features_add.addFeature(index);
+            }
+        }
+    }
+
+    const resolved_target = b.resolveTargetQuery(std.Target.Query{
+        .cpu_arch = target_query.cpu_arch,
+        .cpu_model = target_query.cpu_model,
+        .cpu_features_add = target_query.cpu_features_add,
+        .cpu_features_sub = target_query.cpu_features_sub,
+        .os_tag = .emscripten,
+        .os_version_min = target_query.os_version_min,
+        .os_version_max = target_query.os_version_max,
+        .glibc_version = target_query.glibc_version,
+        .abi = target_query.abi,
+        .dynamic_linker = target_query.dynamic_linker,
+        .ofmt = target_query.ofmt,
     });
 
-    const emsdk_sysroot = b.pathJoin(&.{ emSdkPath(b), "upstream", "emscripten", "cache", "sysroot" });
-    const include_path = b.pathJoin(&.{ emsdk_sysroot, "include" });
-    exe_lib.addSystemIncludePath(.{ .cwd_relative = include_path });
-
-    if (resolved_target.query.os_tag == .wasi) {
-        const webhack_c =
-            \\// Zig adds '__stack_chk_guard', '__stack_chk_fail', and 'errno',
-            \\// which emscripten doesn't actually support.
-            \\// Seems that zig ignores disabling stack checking,
-            \\// and I honestly don't know why emscripten doesn't have errno.
-            \\// TODO: when the updateTargetForWeb workaround gets removed, see if those are nessesary anymore
-            \\#include <stdint.h>
-            \\uintptr_t __stack_chk_guard;
-            \\//I'm not certain if this means buffer overflows won't be detected,
-            \\// However, zig is pretty safe from those, so don't worry about it too much.
-            \\void __stack_chk_fail(void){}
-            \\int errno;
-        ;
-
-        // There are some symbols that need to be defined in C.
-        const webhack_c_file_step = b.addWriteFiles();
-        const webhack_c_file = webhack_c_file_step.add("webhack.c", webhack_c);
-        exe_lib.addCSourceFile(.{ .file = webhack_c_file, .flags = &[_][]u8{} });
-        // Since it's creating a static library, the symbols raylib uses to webgl
-        // and glfw don't need to be linked by emscripten yet.
-        exe_lib.step.dependOn(&webhack_c_file_step.step);
+    std.log.info("resolved target: arch {s}, cpu_model {s}, os {s}", .{
+        resolved_target.result.cpu.arch.genericName(),
+        resolved_target.result.cpu.model.name,
+        @tagName(resolved_target.result.os.tag),
+    });
+    for (resolved_target.result.cpu.arch.allFeaturesList(), 0..) |feature, index_usize| {
+        const index = @as(std.Target.Cpu.Feature.Set.Index, @intCast(index_usize));
+        const is_enabled = resolved_target.result.cpu.features.isEnabled(index);
+        if (feature.llvm_name) |llvm_name| {
+            std.log.info("    feature {s} {s}", .{ llvm_name, if (is_enabled) "enabled" else "disabled" });
+        } else {
+            std.log.info("    feature (unnamed) {s}", .{if (is_enabled) "enabled" else "disabled"});
+        }
     }
+
+    // The project is built as a library and linked later.
+    const exe_lib = b.addLibrary(.{
+        .name = name,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path(root_source_file),
+            .target = resolved_target,
+            .optimize = optimize,
+        }),
+    });
 
     return exe_lib;
 }
 
-// One-time setup of the Emscripten SDK (runs 'emsdk install + activate'). If the
-// SDK had to be setup, a run step will be returned which should be added
-// as dependency to the sokol library (since this needs the emsdk in place),
-// if the emsdk was already setup, null will be returned.
-// NOTE: ideally this would go into a separate emsdk-zig package
-fn emSdkSetupStep(b: *std.Build) !?*std.Build.Step.Run {
-    const emsdk_path = emSdkPath(b);
-    const dot_emsc_path = b.pathJoin(&.{ emsdk_path, ".emscripten" });
-    const dot_emsc_exists = !std.meta.isError(std.fs.accessAbsolute(dot_emsc_path, .{}));
-    if (!dot_emsc_exists) {
-        var cmd = std.ArrayList([]const u8).init(b.allocator);
-        defer cmd.deinit();
-        if (builtin.os.tag == .windows)
-            try cmd.append(b.pathJoin(&.{ emsdk_path, "emsdk.bat" }))
-        else {
-            try cmd.append("bash"); // or try chmod
-            try cmd.append(b.pathJoin(&.{ emsdk_path, "emsdk" }));
+//== EMSCRIPTEN INTEGRATION ============================================================================================
+
+fn emAddIncludes(b: *Build, emsdk: *std.Build.Dependency, main: *std.Build.Step.Compile) void {
+    // one-time setup of Emscripten SDK
+    const maybe_emsdk_setup = try emSdkSetupStep(b, emsdk);
+    if (maybe_emsdk_setup) |emsdk_setup| {
+        main.step.dependOn(&emsdk_setup.step);
+    }
+
+    // get sysroot include
+    const sysroot_include_path = if (b.sysroot) |sysroot|
+        b.pathJoin(&.{ sysroot, "include" })
+    else
+        @panic("unable to get sysroot path");
+
+    // set the necessary include path for zig modules that lib_main imports (this looks hacky)
+    const dependencies = main.root_module.getGraph();
+    for (dependencies.modules) |dependency| {
+        if (sysroot_include_path.len > 0) {
+            // add emscripten system includes to each module, this ensures that any C-modules you import
+            // will "just work", assuming it'll run under Emscripten
+            dependency.addSystemIncludePath(.{ .cwd_relative = sysroot_include_path });
         }
-        const emsdk_install = b.addSystemCommand(cmd.items);
-        emsdk_install.addArgs(&.{ "install", "latest" });
-        const emsdk_activate = b.addSystemCommand(cmd.items);
-        emsdk_activate.addArgs(&.{ "activate", "latest" });
-        emsdk_activate.step.dependOn(&emsdk_install.step);
-        return emsdk_activate;
-    } else {
-        return null;
+    }
+
+    // set the necessary include path for c/c++ libraries that lib_main depends on
+    for (main.getCompileDependencies(false)) |item| {
+        if (maybe_emsdk_setup) |emsdk_setup| {
+            item.step.dependOn(&emsdk_setup.step);
+        }
+        if (sysroot_include_path.len > 0) {
+            // add emscripten system includes to each module, this ensures that any C-modules you import
+            // will "just work", assuming it'll run under Emscripten
+            item.addSystemIncludePath(.{ .cwd_relative = sysroot_include_path });
+        }
     }
 }
 
 // for wasm32-emscripten, need to run the Emscripten linker from the Emscripten SDK
-pub const EmLinkOptions = struct {
+// NOTE: ideally this would go into a separate emsdk-zig package
+const EmLinkOptions = struct {
     target: Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode,
     lib_main: *Build.Step.Compile, // the actual Zig code must be compiled to a static link library
@@ -241,126 +229,88 @@ pub const EmLinkOptions = struct {
     use_webgpu: bool = false,
     use_filesystem: bool = false,
     use_asyncify: bool = true,
-    shell_file_path: ?[]const u8 = null,
+    shell_file_path: ?std.Build.LazyPath,
 };
+fn emLinkStep(b: *Build, emsdk: *std.Build.Dependency, options: EmLinkOptions) !*Build.Step.Run {
+    const emcc_path = emSdkLazyPath(b, emsdk, &.{ "upstream", "emscripten", "emcc" }).getPath(b);
+    const emcc = b.addSystemCommand(&.{emcc_path});
+    emcc.setName("emcc"); // hide emcc path
 
-fn emLinkStep(b: *Build, options: EmLinkOptions) !*Build.Step.Run {
-    const emcc_path = b.pathJoin(&.{ emSdkPath(b), "upstream", "emscripten", "emcc" });
-
-    // create a separate output directory zig-out/web
-    try std.fs.cwd().makePath(b.fmt("{s}/web", .{b.install_path}));
-
-    var emcc_cmd = std.ArrayList([]const u8).init(b.allocator);
-    defer emcc_cmd.deinit();
-
-    try emcc_cmd.append(emcc_path);
     if (options.optimize == .Debug) {
-        try emcc_cmd.append("-Og");
-        try emcc_cmd.append("-sASSERTIONS=1");
-        try emcc_cmd.append("-sSAFE_HEAP=1");
-        try emcc_cmd.append("-sSTACK_OVERFLOW_CHECK=1");
-        try emcc_cmd.append("-gsource-map"); // NOTE(jae): debug sourcemaps in browser, so you can see the stack of crashes
-        try emcc_cmd.append("--emrun"); // NOTE(jae): This flag injects code into the generated Module object to enable capture of stdout, stderr and exit(), ie. outputs it in the terminal
+        emcc.addArgs(&.{ "-Og", "-sASSERTIONS=1", "-sSAFE_HEAP=1", "-sSTACK_OVERFLOW_CHECK=1" });
+        emcc.addArg("-gsource-map"); // NOTE(jae): debug sourcemaps in browser, so you can see the stack of crashes
+        emcc.addArg("--emrun"); // NOTE(jae): This flag injects code into the generated Module object to enable capture of stdout, stderr and exit(), ie. outputs it in the terminal
     } else {
-        try emcc_cmd.append("-sASSERTIONS=0");
+        emcc.addArg("-sASSERTIONS=0");
         if (options.optimize == .ReleaseSmall) {
-            try emcc_cmd.append("-Oz");
+            emcc.addArg("-Oz");
         } else {
-            try emcc_cmd.append("-O3");
+            emcc.addArg("-O3");
         }
         if (options.release_use_lto) {
-            try emcc_cmd.append("-flto");
-            try emcc_cmd.append("-Wl,-u,_emscripten_run_callback_on_thread");
+            emcc.addArgs(&.{ "-flto", "-Wl,-u,_emscripten_run_callback_on_thread" });
         }
         if (options.release_use_closure) {
-            try emcc_cmd.append("--closure");
-            try emcc_cmd.append("1");
+            emcc.addArgs(&.{ "--closure", "1" });
         }
     }
     if (options.use_emmalloc) {
-        try emcc_cmd.append("-sMALLOC='emmalloc'");
+        emcc.addArg("-sMALLOC='emmalloc'");
     }
     if (options.use_pthreads) {
-        try emcc_cmd.append("-pthread");
-        try emcc_cmd.append("-sUSE_PTHREADS=1");
-        try emcc_cmd.append("-sPTHREAD_POOL_SIZE=navigator.hardwareConcurrency");
+        emcc.addArgs(&.{ "-pthread", "-sUSE_PTHREADS=1", "-sPTHREAD_POOL_SIZE=navigator.hardwareConcurrency" });
     }
     if (options.use_webgl2) {
-        try emcc_cmd.append("-sUSE_WEBGL2=1");
+        emcc.addArg("-sUSE_WEBGL2=1");
     }
     if (options.use_webgpu) {
-        try emcc_cmd.append("-sUSE_WEBGPU=1");
+        emcc.addArg("-sUSE_WEBGPU=1");
     }
     if (!options.use_filesystem) {
-        try emcc_cmd.append("-sFILESYSTEM=0");
-        try emcc_cmd.append("-sNO_FILESYSTEM=1");
+        emcc.addArgs(&.{ "-sFILESYSTEM=0", "-sNO_FILESYSTEM=1" });
     }
     if (options.shell_file_path) |shell_file_path| {
-        try emcc_cmd.append(b.fmt("--shell-file={s}", .{shell_file_path}));
+        emcc.addPrefixedFileArg("--shell-file=", shell_file_path);
     }
+
     // NOTE(jae): 0224-02-22
     // Need to fix this linker issue
     // linker: Undefined symbol: eglGetProcAddress(). Please pass -sGL_ENABLE_GET_PROC_ADDRESS at link time to link in eglGetProcAddress().
-    try emcc_cmd.append("-sGL_ENABLE_GET_PROC_ADDRESS=1");
-    try emcc_cmd.append("-sINITIAL_MEMORY=64Mb");
-    try emcc_cmd.append("-sSTACK_SIZE=16Mb");
+    emcc.addArg("-sGL_ENABLE_GET_PROC_ADDRESS=1");
+    emcc.addArg("-sINITIAL_MEMORY=64Mb");
+    emcc.addArg("-sSTACK_SIZE=16Mb");
 
     // NOTE(jae): 2024-02-24
     // Needed or zig crashes with "Aborted(Cannot use convertFrameToPC (needed by __builtin_return_address) without -sUSE_OFFSET_CONVERTER)"
     // for os_tag == .emscripten.
     // However currently then it crashes when trying to call "std.debug.captureStackTrace"
-    try emcc_cmd.append("-sUSE_OFFSET_CONVERTER=1");
-    try emcc_cmd.append("-sFULL_ES3=1");
-    try emcc_cmd.append("-sUSE_GLFW=3");
+    emcc.addArg("-sUSE_OFFSET_CONVERTER=1");
+    emcc.addArg("-sFULL_ES3=1");
+    emcc.addArg("-sUSE_GLFW=3");
+
     if (options.use_asyncify) {
-        try emcc_cmd.append("-sASYNCIFY");
+        emcc.addArg("-sASYNCIFY");
     }
-
-    try emcc_cmd.append(b.fmt("-o{s}/{s}.html", .{ b.getInstallPath(.prefix, "web"), options.lib_main.name }));
-    try emcc_cmd.append("--shell-file");
-    try emcc_cmd.append("web_assets/shell_minimal.html");
-
-    const emcc = b.addSystemCommand(emcc_cmd.items);
-    emcc.setName("emcc"); // hide emcc path
-
-    // one-time setup of Emscripten SDK
-    const maybe_emsdk_setup = try emSdkSetupStep(b);
-    if (maybe_emsdk_setup) |emsdk_setup| {
-        options.lib_main.step.dependOn(&emsdk_setup.step);
-    }
-
-    // get sysroot include
-    const sysroot_include_path = if (b.sysroot) |sysroot|
-        b.pathJoin(&.{ sysroot, "include" })
-    else
-        @panic("unable to get sysroot path");
 
     // add the main lib, and then scan for library dependencies and add those too
     emcc.addArtifactArg(options.lib_main);
-    var it = options.lib_main.root_module.iterateDependencies(options.lib_main, false);
-    while (it.next()) |item| {
-        if (maybe_emsdk_setup) |emsdk_setup| {
-            item.compile.?.step.dependOn(&emsdk_setup.step);
-        }
-        if (sysroot_include_path.len > 0) {
-            // add emscripten system includes to each module, this ensures that any C-modules you import
-            // will "just work", assuming it'll run under Emscripten
-            item.module.addSystemIncludePath(.{ .cwd_relative = sysroot_include_path });
-        }
-        for (item.module.link_objects.items) |link_object| {
-            switch (link_object) {
-                .other_step => |compile_step| {
-                    switch (compile_step.kind) {
-                        .lib => {
-                            emcc.addArtifactArg(compile_step);
-                        },
-                        else => {},
-                    }
-                },
-                else => {},
-            }
+    for (options.lib_main.getCompileDependencies(false)) |item| {
+        if (item.kind == .lib) {
+            emcc.addArtifactArg(item);
         }
     }
+    emcc.addArg("-o");
+    const out_file = emcc.addOutputFileArg(b.fmt("{s}.html", .{options.lib_main.name}));
+
+    emAddIncludes(b, emsdk, options.lib_main);
+
+    // the emcc linker creates 3 output files (.html, .wasm and .js)
+    const install_wasm = b.addInstallDirectory(.{
+        .source_dir = out_file.dirname(),
+        .install_dir = .prefix,
+        .install_subdir = "web",
+    });
+    install_wasm.step.dependOn(&emcc.step);
 
     const install_coi = b.addInstallFile(b.path("web_assets/coi-serviceworker.js"), "web/coi-serviceworker.js");
 
@@ -369,8 +319,7 @@ fn emLinkStep(b: *Build, options: EmLinkOptions) !*Build.Step.Run {
         b.fmt("{s}/{s}.html", .{ b.getInstallPath(.prefix, "web"), options.lib_main.name }),
         b.fmt("{s}/index.html", .{b.getInstallPath(.prefix, "web")}),
     });
-
-    install_index.step.dependOn(&emcc.step);
+    install_index.step.dependOn(&install_wasm.step);
     install_index.step.dependOn(&install_coi.step);
     b.getInstallStep().dependOn(&install_index.step);
 
@@ -378,26 +327,56 @@ fn emLinkStep(b: *Build, options: EmLinkOptions) !*Build.Step.Run {
 }
 
 // build a run step which uses the emsdk emrun command to run a build target in the browser
-pub const EmRunOptions = struct {
-    web_path: []const u8,
+// NOTE: ideally this would go into a separate emsdk-zig package
+const EmRunOptions = struct {
+    name: []const u8,
+    emsdk: *Build.Dependency,
 };
-
-fn emRunStep(b: *std.Build, options: EmRunOptions) *std.Build.Step.Run {
-    const emrun_path = b.pathJoin(&.{ emSdkPath(b), "upstream", "emscripten", "emrun" });
-    // NOTE(jae): 2024-02-24
-    // Default browser to chrome as it has the better WASM debugging tools / UX
-    const emrun = b.addSystemCommand(&.{
-        emrun_path,
-        "--serve_after_exit",
-        "--serve_after_close",
-        "--browser=chrome",
-        options.web_path,
-    });
+fn emRunStep(b: *Build, options: EmRunOptions) *Build.Step.Run {
+    const emrun_path = b.findProgram(&.{"emrun"}, &.{}) catch emSdkLazyPath(b, options.emsdk, &.{ "upstream", "emscripten", "emrun" }).getPath(b);
+    const emrun = b.addSystemCommand(&.{ emrun_path, b.fmt("{s}/web/{s}.html", .{ b.install_path, options.name }) });
     return emrun;
 }
 
-fn emSdkPath(b: *std.Build) []const u8 {
-    const emsdk = b.dependency("emsdk", .{});
-    const emsdk_path = emsdk.path("").getPath(b);
-    return emsdk_path;
+// helper function to build a LazyPath from the emsdk root and provided path components
+fn emSdkLazyPath(b: *Build, emsdk: *Build.Dependency, subPaths: []const []const u8) Build.LazyPath {
+    return emsdk.path(b.pathJoin(subPaths));
 }
+
+fn createEmsdkStep(b: *Build, emsdk: *Build.Dependency) *Build.Step.Run {
+    if (builtin.os.tag == .windows) {
+        return b.addSystemCommand(&.{emSdkLazyPath(b, emsdk, &.{"emsdk.bat"}).getPath(b)});
+    } else {
+        const step = b.addSystemCommand(&.{"bash"});
+        step.addArg(emSdkLazyPath(b, emsdk, &.{"emsdk"}).getPath(b));
+        return step;
+    }
+}
+
+// One-time setup of the Emscripten SDK (runs 'emsdk install + activate'). If the
+// SDK had to be setup, a run step will be returned which should be added
+// as dependency to the sokol library (since this needs the emsdk in place),
+// if the emsdk was already setup, null will be returned.
+// NOTE: ideally this would go into a separate emsdk-zig package
+// NOTE 2: the file exists check is a bit hacky, it would be cleaner
+// to build an on-the-fly helper tool which takes care of the SDK
+// setup and just does nothing if it already happened
+// NOTE 3: this code works just fine when the SDK version is updated in build.zig.zon
+// since this will be cloned into a new zig cache directory which doesn't have
+// an .emscripten file yet until the one-time setup.
+fn emSdkSetupStep(b: *Build, emsdk: *Build.Dependency) !?*Build.Step.Run {
+    const dot_emsc_path = emSdkLazyPath(b, emsdk, &.{".emscripten"}).getPath(b);
+    const dot_emsc_exists = !std.meta.isError(std.fs.accessAbsolute(dot_emsc_path, .{}));
+    if (!dot_emsc_exists) {
+        const emsdk_install = createEmsdkStep(b, emsdk);
+        emsdk_install.addArgs(&.{ "install", "latest" });
+        const emsdk_activate = createEmsdkStep(b, emsdk);
+        emsdk_activate.addArgs(&.{ "activate", "latest" });
+        emsdk_activate.step.dependOn(&emsdk_install.step);
+        return emsdk_activate;
+    } else {
+        return null;
+    }
+}
+
+//== END EMSCRIPTEN INTEGRATION ========================================================================================

@@ -28,7 +28,7 @@ For convenience, to run:
 zig build run
 ```
 
-Tested on Ubuntu 20.04 using zig 0.14.0-dev.1911+3bf89f55c (2024.10.0-mach).
+Tested on Ubuntu 24.04.2 using Zig 0.14.0.
 
 #### Targeting Web Browser
 
@@ -43,9 +43,10 @@ For convenience, to run:
 zig build -Doptimize=ReleaseFast -Dtarget=wasm32-emscripten run
 ```
 
-Tested on Ubuntu 20.04 using zig 0.14.0-dev.1911+3bf89f55c (2024.10.0-mach).
+Tested on Ubuntu 24.04.2 using Zig 0.14.0.
 
-Thanks to [sdl-zig-demo-emscripten](https://github.com/silbinarywolf/sdl-zig-demo-emscripten) for a great starting point!
+Thanks to [sdl-zig-demo-emscripten](https://github.com/silbinarywolf/sdl-zig-demo-emscripten)
+and [sokol-zig](https://github.com/floooh/sokol-zig/) for being great references!
 
 ### Develop
 

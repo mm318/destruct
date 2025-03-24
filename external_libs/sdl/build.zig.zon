@@ -1,8 +1,11 @@
 .{
-    .name = "SDL",
-    .minimum_zig_version = "0.12.0",
+    .name = .SDL,
     .version = "2.30.11",
+
+    .minimum_zig_version = "0.14.0",
+
     .dependencies = .{},
+
     .paths = .{
         "LICENSE.txt",
         "README.md",
@@ -13,4 +16,6 @@
         "src",
         "android-project",
     },
+
+    .fingerprint = 0x7ac4ce4151f6637d,
 }
