@@ -304,14 +304,14 @@ static SDL_Scancode defaultKeyConfig[MAX_PLAYERS][MAX_KEY] =
         SDL_SCANCODE_S          // CHANGE_WEAPON_DOWN
     },
     {
-        SDL_SCANCODE_KP_4,      // LEFT
-        SDL_SCANCODE_KP_6,      // RIGHT
-        SDL_SCANCODE_KP_8,      // UP
-        SDL_SCANCODE_KP_5,      // DOWN
-        SDL_SCANCODE_KP_9,      // CHANGE_UNIT
-        SDL_SCANCODE_SEMICOLON, // FIRE
-        SDL_SCANCODE_RETURN,    // CHANGE_WEAPON_UP
-        SDL_SCANCODE_APOSTROPHE // CHANGE_WEAPON_DOWN
+        SDL_SCANCODE_LEFT,      // LEFT
+        SDL_SCANCODE_RIGHT,     // RIGHT
+        SDL_SCANCODE_UP,        // UP
+        SDL_SCANCODE_DOWN,      // DOWN
+        SDL_SCANCODE_RSHIFT,    // CHANGE_UNIT
+        SDL_SCANCODE_M,         // FIRE
+        SDL_SCANCODE_PERIOD,    // CHANGE_WEAPON_UP
+        SDL_SCANCODE_COMMA      // CHANGE_WEAPON_DOWN
     }
 };
 
