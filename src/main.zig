@@ -3,39 +3,28 @@ const builtin = @import("builtin");
 
 const SDL = @import("sdl2");
 
-const c = @cImport({
-    @cInclude("time.h");
-    @cInclude("destruct.h");
-    @cInclude("config.h");
-    @cInclude("helptext.h");
-    @cInclude("keyboard.h");
-    @cInclude("loudness.h");
-    @cInclude("mtrand.h");
-    @cInclude("nortsong.h");
-    @cInclude("palette.h");
-    @cInclude("params.h");
-    @cInclude("sprite.h");
-    @cInclude("video.h");
-});
+const c = @import("c");
 
 const destruct = @import("destruct.zig");
 
 pub fn logFn(
     comptime _: std.log.Level,
-    comptime scope: @Type(.enum_literal),
+    comptime scope: @EnumLiteral(),
     comptime format: []const u8,
     args: anytype,
 ) void {
     const prefix2 = if (scope == .default) "" else "(" ++ @tagName(scope) ++ "): ";
 
     var buffer: [128]u8 = undefined;
-    const c_string = std.fmt.bufPrintZ(&buffer, prefix2 ++ format ++ "\n", args) catch &buffer;
-    _ = c.printf(c_string.ptr);
+    var writer = std.Io.Writer.fixed(buffer[0 .. buffer.len - 1]);
+    writer.print(prefix2 ++ format ++ "\n", args) catch {};
+    buffer[writer.end] = 0;
+    _ = c.printf("%s", &buffer);
 }
 
 pub const std_options: std.Options = .{
     .log_level = switch (builtin.mode) {
-        .Debug => .debug,
+        .debug => .debug,
         else => .info,
     },
 

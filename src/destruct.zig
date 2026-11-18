@@ -1,17 +1,7 @@
 const std = @import("std");
 const SDL = @import("sdl2");
 
-const c = @cImport({
-    @cInclude("destruct.h");
-    @cInclude("config.h");
-    @cInclude("fonthand.h");
-    @cInclude("keyboard.h");
-    @cInclude("helptext.h");
-    @cInclude("palette.h");
-    @cInclude("picload.h");
-    @cInclude("sprite.h");
-    @cInclude("video.h");
-});
+const c = @import("c");
 
 pub const assets = @import("assets");
 
@@ -46,20 +36,20 @@ pub fn JE_destructGame() void {
     c.load_destruct_config(&c.opentyrian_config, &self.config);
 
     // malloc things that have customizable sizes
-    self.shotRec = @alignCast(@ptrCast(c.malloc(@sizeOf(c.destruct_shot_s) * self.config.max_shots).?));
+    self.shotRec = @ptrCast(@alignCast(c.malloc(@sizeOf(c.destruct_shot_s) * self.config.max_shots).?));
     defer c.free(self.shotRec);
-    self.exploRec = @alignCast(@ptrCast(c.malloc(@sizeOf(c.destruct_explo_s) * self.config.max_explosions).?));
+    self.exploRec = @ptrCast(@alignCast(c.malloc(@sizeOf(c.destruct_explo_s) * self.config.max_explosions).?));
     defer c.free(self.exploRec);
-    self.world.mapWalls = @alignCast(@ptrCast(c.malloc(@sizeOf(c.destruct_wall_s) * self.config.max_walls).?));
+    self.world.mapWalls = @ptrCast(@alignCast(c.malloc(@sizeOf(c.destruct_wall_s) * self.config.max_walls).?));
     defer c.free(self.world.mapWalls);
 
     //Malloc enough structures to cover all of this session's possible needs.
     for (0..10) |i| {
         self.config.max_installations = c.MAX(self.config.max_installations, c.basetypes[i][0]);
     }
-    self.destruct_players[c.PLAYER_LEFT].unit = @alignCast(@ptrCast(c.malloc(@sizeOf(c.destruct_unit_s) * self.config.max_installations).?));
+    self.destruct_players[c.PLAYER_LEFT].unit = @ptrCast(@alignCast(c.malloc(@sizeOf(c.destruct_unit_s) * self.config.max_installations).?));
     defer c.free(self.destruct_players[c.PLAYER_LEFT].unit);
-    self.destruct_players[c.PLAYER_RIGHT].unit = @alignCast(@ptrCast(c.malloc(@sizeOf(c.destruct_unit_s) * self.config.max_installations).?));
+    self.destruct_players[c.PLAYER_RIGHT].unit = @ptrCast(@alignCast(c.malloc(@sizeOf(c.destruct_unit_s) * self.config.max_installations).?));
     defer c.free(self.destruct_players[c.PLAYER_RIGHT].unit);
 
     self.world.VGAScreen = c.VGAScreen;
@@ -197,14 +187,14 @@ const MainMenu = struct {
     }
 
     fn draw(self: *const MainMenu, currScreen: *c.SDL_Surface) void {
-        inline for (0.., std.meta.fields(Options)) |i, f| {
+        inline for (0.., std.enums.values(Options)) |i, option| {
             c.JE_textShade(
                 currScreen,
-                c.JE_fontCenter(MainMenu.getName(@enumFromInt(f.value)).ptr, c.TINY_FONT),
+                c.JE_fontCenter(MainMenu.getName(option).ptr, c.TINY_FONT),
                 @intCast(82 + i * 12),
-                MainMenu.getName(@enumFromInt(f.value)).ptr,
+                MainMenu.getName(option).ptr,
                 12,
-                @intFromBool(@as(Options, @enumFromInt(f.value)) == self.state) * @as(c_int, 4),
+                @intFromBool(option == self.state) * @as(c_int, 4),
                 c.FULL_SHADE,
             );
 

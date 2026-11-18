@@ -17,48 +17,48 @@ pub fn build(b: *std.Build) void {
     });
 
     const sdl_include_path = b.path("include");
-    lib.addCSourceFiles(.{ .files = &generic_src_files });
+    lib.root_module.addCSourceFiles(.{ .files = &generic_src_files });
     lib.root_module.addCMacro("SDL_USE_BUILTIN_OPENGL_DEFINITIONS", "1");
     lib.root_module.addCMacro("HAVE_GCC_ATOMICS", "1");
     lib.root_module.addCMacro("HAVE_GCC_SYNC_LOCK_TEST_AND_SET", "1");
-    lib.linkLibC();
+    lib.root_module.link_libc = true;
     switch (t.os.tag) {
         .windows => {
             lib.root_module.addCMacro("SDL_STATIC_LIB", "");
-            lib.addCSourceFiles(.{ .files = &windows_src_files });
-            lib.linkSystemLibrary("user32");
-            lib.linkSystemLibrary("shell32");
-            lib.linkSystemLibrary("advapi32");
-            lib.linkSystemLibrary("setupapi");
-            lib.linkSystemLibrary("winmm");
-            lib.linkSystemLibrary("gdi32");
-            lib.linkSystemLibrary("imm32");
-            lib.linkSystemLibrary("version");
-            lib.linkSystemLibrary("oleaut32");
-            lib.linkSystemLibrary("ole32");
+            lib.root_module.addCSourceFiles(.{ .files = &windows_src_files });
+            lib.root_module.linkSystemLibrary("user32", .{});
+            lib.root_module.linkSystemLibrary("shell32", .{});
+            lib.root_module.linkSystemLibrary("advapi32", .{});
+            lib.root_module.linkSystemLibrary("setupapi", .{});
+            lib.root_module.linkSystemLibrary("winmm", .{});
+            lib.root_module.linkSystemLibrary("gdi32", .{});
+            lib.root_module.linkSystemLibrary("imm32", .{});
+            lib.root_module.linkSystemLibrary("version", .{});
+            lib.root_module.linkSystemLibrary("oleaut32", .{});
+            lib.root_module.linkSystemLibrary("ole32", .{});
         },
         .macos => {
-            lib.addCSourceFiles(.{ .files = &darwin_src_files });
-            lib.addCSourceFiles(.{
+            lib.root_module.addCSourceFiles(.{ .files = &darwin_src_files });
+            lib.root_module.addCSourceFiles(.{
                 .files = &objective_c_src_files,
                 .flags = &.{"-fobjc-arc"},
             });
-            lib.linkFramework("OpenGL");
-            lib.linkFramework("Metal");
-            lib.linkFramework("CoreVideo");
-            lib.linkFramework("Cocoa");
-            lib.linkFramework("IOKit");
-            lib.linkFramework("ForceFeedback");
-            lib.linkFramework("Carbon");
-            lib.linkFramework("CoreAudio");
-            lib.linkFramework("AudioToolbox");
-            lib.linkFramework("AVFoundation");
-            lib.linkFramework("Foundation");
+            lib.root_module.linkFramework("OpenGL", .{});
+            lib.root_module.linkFramework("Metal", .{});
+            lib.root_module.linkFramework("CoreVideo", .{});
+            lib.root_module.linkFramework("Cocoa", .{});
+            lib.root_module.linkFramework("IOKit", .{});
+            lib.root_module.linkFramework("ForceFeedback", .{});
+            lib.root_module.linkFramework("Carbon", .{});
+            lib.root_module.linkFramework("CoreAudio", .{});
+            lib.root_module.linkFramework("AudioToolbox", .{});
+            lib.root_module.linkFramework("AVFoundation", .{});
+            lib.root_module.linkFramework("Foundation", .{});
         },
         .emscripten => {
-            lib.root_module.addCMacro("__EMSCRIPTEN_PTHREADS__ ", "1");
+            lib.root_module.addCMacro("__EMSCRIPTEN_PTHREADS__", "1");
             lib.root_module.addCMacro("USE_SDL", "2");
-            lib.addCSourceFiles(.{ .files = &emscripten_src_files });
+            lib.root_module.addCSourceFiles(.{ .files = &emscripten_src_files });
         },
         else => {
             if (t.abi.isAndroid()) {
@@ -88,17 +88,17 @@ pub fn build(b: *std.Build) void {
                 }
 
                 // https://github.com/libsdl-org/SDL/blob/release-2.30.6/Android.mk#L82C62-L82C69
-                lib.linkSystemLibrary("dl");
-                lib.linkSystemLibrary("GLESv1_CM");
-                lib.linkSystemLibrary("GLESv2");
-                lib.linkSystemLibrary("OpenSLES");
-                lib.linkSystemLibrary("log");
-                lib.linkSystemLibrary("android");
+                lib.root_module.linkSystemLibrary("dl", .{});
+                lib.root_module.linkSystemLibrary("GLESv1_CM", .{});
+                lib.root_module.linkSystemLibrary("GLESv2", .{});
+                lib.root_module.linkSystemLibrary("OpenSLES", .{});
+                lib.root_module.linkSystemLibrary("log", .{});
+                lib.root_module.linkSystemLibrary("android", .{});
             }
         },
     }
 
-    lib.addIncludePath(sdl_include_path);
+    lib.root_module.addIncludePath(sdl_include_path);
 
     const use_pregenerated_config = switch (t.os.tag) {
         .windows, .macos, .emscripten => true,
@@ -107,20 +107,20 @@ pub fn build(b: *std.Build) void {
     };
 
     if (use_pregenerated_config) {
-        lib.addIncludePath(b.path("include-pregen"));
+        lib.root_module.addIncludePath(b.path("include-pregen"));
         lib.installHeadersDirectory(b.path("include-pregen"), "SDL2", .{});
-        lib.addCSourceFiles(.{ .files = render_driver_sw.src_files });
+        lib.root_module.addCSourceFiles(.{ .files = render_driver_sw.src_files });
     } else {
         // causes pregenerated SDL_config.h to assert an error
         lib.root_module.addCMacro("USING_GENERATED_CONFIG_H", "");
 
-        var files = std.ArrayList([]const u8).init(b.allocator);
-        defer files.deinit();
+        var files: std.ArrayList([]const u8) = .empty;
+        defer files.deinit(b.allocator);
 
         const config_header = configHeader(b, t);
         switch (t.os.tag) {
             .linux => {
-                files.appendSlice(&linux_src_files) catch @panic("OOM");
+                files.appendSlice(b.allocator, &linux_src_files) catch @panic("OOM");
                 config_header.addValues(.{
                     .SDL_VIDEO_OPENGL = 1,
                     .SDL_VIDEO_OPENGL_ES = 1,
@@ -137,9 +137,9 @@ pub fn build(b: *std.Build) void {
             },
             else => {},
         }
-        lib.addCSourceFiles(.{ .files = files.toOwnedSlice() catch @panic("OOM") });
-        lib.addConfigHeader(config_header);
-        lib.installHeader(config_header.getOutput(), "SDL2/SDL_config.h");
+        lib.root_module.addCSourceFiles(.{ .files = files.toOwnedSlice(b.allocator) catch @panic("OOM") });
+        lib.root_module.addConfigHeader(config_header);
+        lib.installHeader(config_header.getOutputFile(), "SDL2/SDL_config.h");
 
         const revision_header = b.addConfigHeader(.{
             .style = .{ .cmake = b.path("include/SDL_revision.h.cmake") },
@@ -148,21 +148,25 @@ pub fn build(b: *std.Build) void {
             .SDL_REVISION = "SDL-2.30.11",
             .SDL_VENDOR_INFO = "allyourcodebase.com",
         });
-        lib.addConfigHeader(revision_header);
-        lib.installHeader(revision_header.getOutput(), "SDL2/SDL_revision.h");
+        lib.root_module.addConfigHeader(revision_header);
+        lib.installHeader(revision_header.getOutputFile(), "SDL2/SDL_revision.h");
     }
 
     const use_hidapi = b.option(bool, "use_hidapi", "Use hidapi shared library") orelse t.abi.isAndroid();
 
     if (use_hidapi) {
-        const hidapi_lib = b.addSharedLibrary(.{
+        const hidapi_lib = b.addLibrary(.{
             .name = "hidapi",
-            .target = target,
-            .optimize = optimize,
-            .link_libc = true,
+            .linkage = .dynamic,
+            .root_module = b.createModule(.{
+                .target = target,
+                .optimize = optimize,
+                .link_libc = true,
+                .link_libcpp = true,
+            }),
         });
-        hidapi_lib.addIncludePath(sdl_include_path);
-        hidapi_lib.addIncludePath(b.path("include-pregen"));
+        hidapi_lib.root_module.addIncludePath(sdl_include_path);
+        hidapi_lib.root_module.addIncludePath(b.path("include-pregen"));
         hidapi_lib.root_module.addCSourceFiles(.{
             .root = b.path(""),
             .files = &[_][]const u8{
@@ -170,19 +174,25 @@ pub fn build(b: *std.Build) void {
             },
             .flags = &.{"-std=c++11"},
         });
-        hidapi_lib.linkSystemLibrary("log");
-        hidapi_lib.linkLibCpp();
-        lib.linkLibrary(hidapi_lib);
+        hidapi_lib.root_module.linkSystemLibrary("log", .{});
+        lib.root_module.linkLibrary(hidapi_lib);
         b.installArtifact(hidapi_lib);
     }
 
     lib.installHeadersDirectory(b.path("include"), "SDL2", .{});
     b.installArtifact(lib);
 
-    var module = b.addModule("sdl", .{
-        .root_source_file = b.path("sdl.zig"),
+    const bindings = b.addTranslateC(.{
+        .root_source_file = b.path("include/SDL.h"),
+        .target = target,
+        .optimize = optimize,
     });
-    module.addIncludePath(lib.getEmittedIncludeTree().path(b, "SDL2"));
+    bindings.addIncludePath(lib.getEmittedIncludeTree().path(b, "SDL2"));
+    if (b.option(std.Build.LazyPath, "emscripten_include", "Emscripten sysroot include directory")) |include| {
+        lib.root_module.addSystemIncludePath(include);
+        bindings.addSystemIncludePath(include);
+    }
+    _ = bindings.addModule("sdl");
 }
 
 const generic_src_files = [_][]const u8{
@@ -997,12 +1007,12 @@ fn applyOptions(
             lib.root_module.addCMacro(name, if (enabled) "1" else "0");
         }
         for (option.sdl_configs) |config| {
-            config_header.values.put(config, .{ .int = if (enabled) 1 else 0 }) catch @panic("OOM");
+            config_header.addValue(config, bool, enabled);
         }
         if (enabled) {
-            files.appendSlice(option.src_files) catch @panic("OOM");
+            files.appendSlice(b.allocator, option.src_files) catch @panic("OOM");
             for (option.system_libs) |lib_name| {
-                lib.linkSystemLibrary(lib_name);
+                lib.root_module.linkSystemLibrary(lib_name, .{});
             }
         }
     }

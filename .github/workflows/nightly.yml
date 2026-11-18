@@ -14,11 +14,13 @@ jobs:
       matrix:
         include:
           - target: 'native'
-            optimizaton: 'Debug'
+            optimization: 'debug'
           - target: 'native'
-            optimizaton: 'ReleaseSafe'
+            optimization: 'safe'
           - target: 'emscripten'
-            optimizaton: 'ReleaseFast'
+            optimization: 'debug'
+          - target: 'emscripten'
+            optimization: 'fast'
 
     runs-on: ubuntu-latest
 
@@ -30,11 +32,15 @@ jobs:
 
       - uses: actions/checkout@v4
 
-      - uses: mlugg/setup-zig@v1
+      - uses: mlugg/setup-zig@v2
         with:
-          version: 0.14.0
+          version: 0.17.1
+
+      - name: Install Emscripten SDK
+        if: matrix.target == 'emscripten'
+        run: zig build install-emsdk
 
       - name: Build game
         run: |
-          zig build -Doptimize=${{ matrix.optimizaton }} \
+          zig build -Doptimize=${{ matrix.optimization }} \
             ${{ matrix.target == 'emscripten' && '-Dtarget=wasm32-emscripten' || '' }}
