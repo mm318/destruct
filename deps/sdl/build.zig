@@ -1,0 +1,1062 @@
+const std = @import("std");
+
+pub fn build(b: *std.Build) void {
+    const target = b.standardTargetOptions(.{});
+    const optimize = b.standardOptimizeOption(.{});
+    const t = target.result;
+
+    if (t.abi.isAndroid() or switch (t.os.tag) {
+        .linux, .windows, .macos, .emscripten => false,
+        else => true,
+    }) {
+        std.debug.panic("SDL supports Linux, Windows, macOS, and Emscripten only (got {s}-{s})", .{
+            @tagName(t.os.tag), @tagName(t.abi),
+        });
+    }
+    const lib = b.addLibrary(.{
+        .name = "SDL2",
+        .version = .{ .major = 2, .minor = 32, .patch = 10 },
+        .linkage = .static,
+        .root_module = b.createModule(.{
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+
+    const sdl_include_path = b.path("include");
+    lib.root_module.addCSourceFiles(.{ .files = &generic_src_files });
+    lib.root_module.addCMacro("SDL_USE_BUILTIN_OPENGL_DEFINITIONS", "1");
+    lib.root_module.addCMacro("HAVE_GCC_ATOMICS", "1");
+    lib.root_module.addCMacro("HAVE_GCC_SYNC_LOCK_TEST_AND_SET", "1");
+    lib.root_module.link_libc = true;
+    switch (t.os.tag) {
+        .windows => {
+            lib.root_module.addCMacro("SDL_STATIC_LIB", "");
+            lib.root_module.addCSourceFiles(.{ .files = &windows_src_files });
+            lib.root_module.linkSystemLibrary("user32", .{});
+            lib.root_module.linkSystemLibrary("shell32", .{});
+            lib.root_module.linkSystemLibrary("advapi32", .{});
+            lib.root_module.linkSystemLibrary("setupapi", .{});
+            lib.root_module.linkSystemLibrary("winmm", .{});
+            lib.root_module.linkSystemLibrary("gdi32", .{});
+            lib.root_module.linkSystemLibrary("imm32", .{});
+            lib.root_module.linkSystemLibrary("version", .{});
+            lib.root_module.linkSystemLibrary("oleaut32", .{});
+            lib.root_module.linkSystemLibrary("ole32", .{});
+        },
+        .macos => {
+            lib.root_module.addCSourceFiles(.{ .files = &macos_src_files });
+            lib.root_module.addCSourceFiles(.{
+                .files = &objective_c_src_files,
+                .flags = &.{"-fobjc-arc"},
+            });
+            lib.root_module.linkFramework("OpenGL", .{});
+            lib.root_module.linkFramework("Metal", .{});
+            lib.root_module.linkFramework("CoreVideo", .{});
+            lib.root_module.linkFramework("Cocoa", .{});
+            lib.root_module.linkFramework("IOKit", .{});
+            lib.root_module.linkFramework("ForceFeedback", .{});
+            lib.root_module.linkFramework("Carbon", .{});
+            lib.root_module.linkFramework("CoreAudio", .{});
+            lib.root_module.linkFramework("AudioToolbox", .{});
+            lib.root_module.linkFramework("AVFoundation", .{});
+            lib.root_module.linkFramework("Foundation", .{});
+        },
+        .emscripten => {
+            lib.root_module.addCMacro("__EMSCRIPTEN_PTHREADS__", "1");
+            lib.root_module.addCMacro("USE_SDL", "2");
+            lib.root_module.addCSourceFiles(.{ .files = &emscripten_src_files });
+        },
+        .linux => {},
+        else => unreachable,
+    }
+
+    lib.root_module.addIncludePath(sdl_include_path);
+
+    const use_pregenerated_config = t.os.tag != .linux;
+
+    if (use_pregenerated_config) {
+        lib.root_module.addIncludePath(b.path("include-pregen"));
+        lib.installHeadersDirectory(b.path("include-pregen"), "SDL2", .{});
+        lib.root_module.addCSourceFiles(.{ .files = render_driver_sw.src_files });
+    } else {
+        // causes pregenerated SDL_config.h to assert an error
+        lib.root_module.addCMacro("USING_GENERATED_CONFIG_H", "");
+
+        var files: std.ArrayList([]const u8) = .empty;
+        defer files.deinit(b.allocator);
+
+        const config_header = linuxConfigHeader(b, t.cpu.arch);
+        files.appendSlice(b.allocator, &linux_src_files) catch @panic("OOM");
+        config_header.addValues(.{
+            .SDL_VIDEO_OPENGL = 1,
+            .SDL_VIDEO_OPENGL_ES = 1,
+            .SDL_VIDEO_OPENGL_ES2 = 1,
+            .SDL_VIDEO_OPENGL_BGL = 1,
+            .SDL_VIDEO_OPENGL_CGL = 1,
+            .SDL_VIDEO_OPENGL_GLX = 1,
+            .SDL_VIDEO_OPENGL_WGL = 1,
+            .SDL_VIDEO_OPENGL_EGL = 1,
+            .SDL_VIDEO_OPENGL_OSMESA = 1,
+            .SDL_VIDEO_OPENGL_OSMESA_DYNAMIC = 1,
+        });
+        applyOptions(b, lib, &files, config_header, &linux_options);
+        lib.root_module.addCSourceFiles(.{ .files = files.toOwnedSlice(b.allocator) catch @panic("OOM") });
+        lib.root_module.addConfigHeader(config_header);
+        lib.installHeader(config_header.getOutputFile(), "SDL2/SDL_config.h");
+
+        const revision_header = b.addConfigHeader(.{
+            .style = .{ .cmake = b.path("include/SDL_revision.h.cmake") },
+            .include_path = "SDL_revision.h",
+        }, .{
+            .SDL_REVISION = "SDL-2.32.10",
+            .SDL_VENDOR_INFO = "allyourcodebase.com",
+        });
+        lib.root_module.addConfigHeader(revision_header);
+        lib.installHeader(revision_header.getOutputFile(), "SDL2/SDL_revision.h");
+    }
+
+    lib.installHeadersDirectory(b.path("include"), "SDL2", .{});
+    b.installArtifact(lib);
+
+    const bindings = b.addTranslateC(.{
+        .root_source_file = b.path("include/SDL.h"),
+        .target = target,
+        .optimize = optimize,
+    });
+    bindings.addIncludePath(lib.getEmittedIncludeTree().path(b, "SDL2"));
+    if (b.option(std.Build.LazyPath, "emscripten_include", "Emscripten sysroot include directory")) |include| {
+        lib.root_module.addSystemIncludePath(include);
+        bindings.addSystemIncludePath(include);
+    }
+    _ = bindings.addModule("sdl");
+}
+
+const generic_src_files = [_][]const u8{
+    "src/SDL.c",
+    "src/SDL_assert.c",
+    "src/SDL_dataqueue.c",
+    "src/SDL_error.c",
+    "src/SDL_guid.c",
+    "src/SDL_hints.c",
+    "src/SDL_list.c",
+    "src/SDL_log.c",
+    "src/SDL_utils.c",
+    "src/atomic/SDL_atomic.c",
+    "src/atomic/SDL_spinlock.c",
+    "src/audio/SDL_audio.c",
+    "src/audio/SDL_audiocvt.c",
+    "src/audio/SDL_audiodev.c",
+    "src/audio/SDL_audiotypecvt.c",
+    "src/audio/SDL_mixer.c",
+    "src/audio/SDL_wave.c",
+    "src/cpuinfo/SDL_cpuinfo.c",
+    "src/dynapi/SDL_dynapi.c",
+    "src/events/SDL_clipboardevents.c",
+    "src/events/SDL_displayevents.c",
+    "src/events/SDL_dropevents.c",
+    "src/events/SDL_events.c",
+    "src/events/SDL_gesture.c",
+    "src/events/SDL_keyboard.c",
+    "src/events/SDL_keysym_to_scancode.c",
+    "src/events/SDL_mouse.c",
+    "src/events/SDL_quit.c",
+    "src/events/SDL_scancode_tables.c",
+    "src/events/SDL_touch.c",
+    "src/events/SDL_windowevents.c",
+    "src/events/imKStoUCS.c",
+    "src/file/SDL_rwops.c",
+    "src/haptic/SDL_haptic.c",
+    "src/hidapi/SDL_hidapi.c",
+
+    "src/joystick/SDL_gamecontroller.c",
+    "src/joystick/SDL_joystick.c",
+    "src/joystick/SDL_steam_virtual_gamepad.c",
+    "src/joystick/controller_type.c",
+    "src/joystick/virtual/SDL_virtualjoystick.c",
+
+    "src/libm/e_atan2.c",
+    "src/libm/e_exp.c",
+    "src/libm/e_fmod.c",
+    "src/libm/e_log.c",
+    "src/libm/e_log10.c",
+    "src/libm/e_pow.c",
+    "src/libm/e_rem_pio2.c",
+    "src/libm/e_sqrt.c",
+    "src/libm/k_cos.c",
+    "src/libm/k_rem_pio2.c",
+    "src/libm/k_sin.c",
+    "src/libm/k_tan.c",
+    "src/libm/s_atan.c",
+    "src/libm/s_copysign.c",
+    "src/libm/s_cos.c",
+    "src/libm/s_fabs.c",
+    "src/libm/s_floor.c",
+    "src/libm/s_scalbn.c",
+    "src/libm/s_sin.c",
+    "src/libm/s_tan.c",
+    "src/locale/SDL_locale.c",
+    "src/misc/SDL_url.c",
+    "src/power/SDL_power.c",
+    "src/render/SDL_d3dmath.c",
+    "src/render/SDL_render.c",
+    "src/render/SDL_yuv_sw.c",
+    "src/sensor/SDL_sensor.c",
+    "src/stdlib/SDL_crc16.c",
+    "src/stdlib/SDL_crc32.c",
+    "src/stdlib/SDL_getenv.c",
+    "src/stdlib/SDL_iconv.c",
+    "src/stdlib/SDL_malloc.c",
+    "src/stdlib/SDL_mslibc.c",
+    "src/stdlib/SDL_qsort.c",
+    "src/stdlib/SDL_stdlib.c",
+    "src/stdlib/SDL_string.c",
+    "src/stdlib/SDL_strtokr.c",
+    "src/thread/SDL_thread.c",
+    "src/timer/SDL_timer.c",
+    "src/video/SDL_RLEaccel.c",
+    "src/video/SDL_blit.c",
+    "src/video/SDL_blit_0.c",
+    "src/video/SDL_blit_1.c",
+    "src/video/SDL_blit_A.c",
+    "src/video/SDL_blit_N.c",
+    "src/video/SDL_blit_auto.c",
+    "src/video/SDL_blit_copy.c",
+    "src/video/SDL_blit_slow.c",
+    "src/video/SDL_bmp.c",
+    "src/video/SDL_clipboard.c",
+    "src/video/SDL_egl.c",
+    "src/video/SDL_fillrect.c",
+    "src/video/SDL_pixels.c",
+    "src/video/SDL_rect.c",
+    "src/video/SDL_shape.c",
+    "src/video/SDL_stretch.c",
+    "src/video/SDL_surface.c",
+    "src/video/SDL_video.c",
+    "src/video/SDL_vulkan_utils.c",
+    "src/video/SDL_yuv.c",
+    "src/video/yuv2rgb/yuv_rgb_lsx.c",
+    "src/video/yuv2rgb/yuv_rgb_sse.c",
+    "src/video/yuv2rgb/yuv_rgb_std.c",
+
+    "src/video/dummy/SDL_nullevents.c",
+    "src/video/dummy/SDL_nullframebuffer.c",
+    "src/video/dummy/SDL_nullvideo.c",
+
+    "src/audio/dummy/SDL_dummyaudio.c",
+
+    "src/joystick/hidapi/SDL_hidapi_combined.c",
+    "src/joystick/hidapi/SDL_hidapi_gamecube.c",
+    "src/joystick/hidapi/SDL_hidapi_luna.c",
+    "src/joystick/hidapi/SDL_hidapi_ps3.c",
+    "src/joystick/hidapi/SDL_hidapi_ps4.c",
+    "src/joystick/hidapi/SDL_hidapi_ps5.c",
+    "src/joystick/hidapi/SDL_hidapi_rumble.c",
+    "src/joystick/hidapi/SDL_hidapi_shield.c",
+    "src/joystick/hidapi/SDL_hidapi_stadia.c",
+    "src/joystick/hidapi/SDL_hidapi_steam.c",
+    "src/joystick/hidapi/SDL_hidapi_steamdeck.c",
+    "src/joystick/hidapi/SDL_hidapi_switch.c",
+    "src/joystick/hidapi/SDL_hidapi_wii.c",
+    "src/joystick/hidapi/SDL_hidapi_xbox360.c",
+    "src/joystick/hidapi/SDL_hidapi_xbox360w.c",
+    "src/joystick/hidapi/SDL_hidapi_xboxone.c",
+    "src/joystick/hidapi/SDL_hidapijoystick.c",
+};
+
+const windows_src_files = [_][]const u8{
+    "src/core/windows/SDL_hid.c",
+    "src/core/windows/SDL_immdevice.c",
+    "src/core/windows/SDL_windows.c",
+    "src/core/windows/SDL_xinput.c",
+    "src/filesystem/windows/SDL_sysfilesystem.c",
+    "src/haptic/windows/SDL_dinputhaptic.c",
+    "src/haptic/windows/SDL_windowshaptic.c",
+    "src/haptic/windows/SDL_xinputhaptic.c",
+    "src/hidapi/windows/hid.c",
+    "src/joystick/windows/SDL_dinputjoystick.c",
+    "src/joystick/windows/SDL_rawinputjoystick.c",
+    "src/joystick/windows/SDL_windows_gaming_input.c",
+    "src/joystick/windows/SDL_windowsjoystick.c",
+    "src/joystick/windows/SDL_xinputjoystick.c",
+
+    "src/loadso/windows/SDL_sysloadso.c",
+    "src/locale/windows/SDL_syslocale.c",
+    "src/main/windows/SDL_windows_main.c",
+    "src/misc/windows/SDL_sysurl.c",
+    "src/power/windows/SDL_syspower.c",
+    "src/sensor/windows/SDL_windowssensor.c",
+    "src/timer/windows/SDL_systimer.c",
+    "src/video/windows/SDL_windowsclipboard.c",
+    "src/video/windows/SDL_windowsevents.c",
+    "src/video/windows/SDL_windowsframebuffer.c",
+    "src/video/windows/SDL_windowskeyboard.c",
+    "src/video/windows/SDL_windowsmessagebox.c",
+    "src/video/windows/SDL_windowsmodes.c",
+    "src/video/windows/SDL_windowsmouse.c",
+    "src/video/windows/SDL_windowsopengl.c",
+    "src/video/windows/SDL_windowsopengles.c",
+    "src/video/windows/SDL_windowsshape.c",
+    "src/video/windows/SDL_windowsvideo.c",
+    "src/video/windows/SDL_windowsvulkan.c",
+    "src/video/windows/SDL_windowswindow.c",
+
+    "src/thread/windows/SDL_syscond_cv.c",
+    "src/thread/windows/SDL_sysmutex.c",
+    "src/thread/windows/SDL_syssem.c",
+    "src/thread/windows/SDL_systhread.c",
+    "src/thread/windows/SDL_systls.c",
+    "src/thread/generic/SDL_syscond.c",
+
+    "src/render/direct3d/SDL_render_d3d.c",
+    "src/render/direct3d/SDL_shaders_d3d.c",
+    "src/render/direct3d11/SDL_render_d3d11.c",
+    "src/render/direct3d11/SDL_shaders_d3d11.c",
+    "src/render/direct3d12/SDL_render_d3d12.c",
+    "src/render/direct3d12/SDL_shaders_d3d12.c",
+
+    "src/audio/directsound/SDL_directsound.c",
+    "src/audio/wasapi/SDL_wasapi.c",
+    "src/audio/wasapi/SDL_wasapi_win32.c",
+    "src/audio/winmm/SDL_winmm.c",
+    "src/audio/disk/SDL_diskaudio.c",
+
+    "src/render/opengl/SDL_render_gl.c",
+    "src/render/opengl/SDL_shaders_gl.c",
+    "src/render/opengles/SDL_render_gles.c",
+    "src/render/opengles2/SDL_render_gles2.c",
+    "src/render/opengles2/SDL_shaders_gles2.c",
+};
+
+const linux_src_files = [_][]const u8{
+    "src/core/linux/SDL_evdev.c",
+    "src/core/linux/SDL_evdev_capabilities.c",
+    "src/core/linux/SDL_evdev_kbd.c",
+    "src/core/linux/SDL_threadprio.c",
+    "src/core/unix/SDL_poll.c",
+
+    "src/filesystem/unix/SDL_sysfilesystem.c",
+
+    "src/haptic/linux/SDL_syshaptic.c",
+
+    "src/loadso/dlopen/SDL_sysloadso.c",
+    "src/joystick/linux/SDL_sysjoystick.c",
+    "src/joystick/steam/SDL_steamcontroller.c",
+
+    "src/misc/unix/SDL_sysurl.c",
+
+    "src/thread/pthread/SDL_sysmutex.c",
+    "src/thread/pthread/SDL_syssem.c",
+    "src/thread/pthread/SDL_systhread.c",
+    "src/thread/pthread/SDL_systls.c",
+
+    "src/timer/unix/SDL_systimer.c",
+
+    "src/video/x11/SDL_x11clipboard.c",
+    "src/video/x11/SDL_x11dyn.c",
+    "src/video/x11/SDL_x11events.c",
+    "src/video/x11/SDL_x11framebuffer.c",
+    "src/video/x11/SDL_x11keyboard.c",
+    "src/video/x11/SDL_x11messagebox.c",
+    "src/video/x11/SDL_x11modes.c",
+    "src/video/x11/SDL_x11mouse.c",
+    "src/video/x11/SDL_x11opengl.c",
+    "src/video/x11/SDL_x11opengles.c",
+    "src/video/x11/SDL_x11shape.c",
+    "src/video/x11/SDL_x11touch.c",
+    "src/video/x11/SDL_x11video.c",
+    "src/video/x11/SDL_x11vulkan.c",
+    "src/video/x11/SDL_x11window.c",
+    "src/video/x11/SDL_x11xfixes.c",
+    "src/video/x11/SDL_x11xinput2.c",
+    "src/video/x11/edid-parse.c",
+};
+
+const macos_src_files = [_][]const u8{
+    "src/haptic/darwin/SDL_syshaptic.c",
+    "src/joystick/darwin/SDL_iokitjoystick.c",
+    "src/power/macosx/SDL_syspower.c",
+    "src/timer/unix/SDL_systimer.c",
+    "src/loadso/dlopen/SDL_sysloadso.c",
+    "src/audio/disk/SDL_diskaudio.c",
+    "src/render/opengl/SDL_render_gl.c",
+    "src/render/opengl/SDL_shaders_gl.c",
+    "src/render/opengles/SDL_render_gles.c",
+    "src/render/opengles2/SDL_render_gles2.c",
+    "src/render/opengles2/SDL_shaders_gles2.c",
+    "src/sensor/dummy/SDL_dummysensor.c",
+
+    "src/thread/pthread/SDL_syscond.c",
+    "src/thread/pthread/SDL_sysmutex.c",
+    "src/thread/pthread/SDL_syssem.c",
+    "src/thread/pthread/SDL_systhread.c",
+    "src/thread/pthread/SDL_systls.c",
+};
+
+const objective_c_src_files = [_][]const u8{
+    "src/audio/coreaudio/SDL_coreaudio.m",
+    "src/file/cocoa/SDL_rwopsbundlesupport.m",
+    "src/filesystem/cocoa/SDL_sysfilesystem.m",
+    "src/locale/macosx/SDL_syslocale.m",
+    "src/misc/macosx/SDL_sysurl.m",
+    "src/render/metal/SDL_render_metal.m",
+    "src/video/cocoa/SDL_cocoaclipboard.m",
+    "src/video/cocoa/SDL_cocoaevents.m",
+    "src/video/cocoa/SDL_cocoakeyboard.m",
+    "src/video/cocoa/SDL_cocoamessagebox.m",
+    "src/video/cocoa/SDL_cocoametalview.m",
+    "src/video/cocoa/SDL_cocoamodes.m",
+    "src/video/cocoa/SDL_cocoamouse.m",
+    "src/video/cocoa/SDL_cocoaopengl.m",
+    "src/video/cocoa/SDL_cocoaopengles.m",
+    "src/video/cocoa/SDL_cocoashape.m",
+    "src/video/cocoa/SDL_cocoavideo.m",
+    "src/video/cocoa/SDL_cocoavulkan.m",
+    "src/video/cocoa/SDL_cocoawindow.m",
+};
+
+const emscripten_src_files = [_][]const u8{
+    "src/audio/emscripten/SDL_emscriptenaudio.c",
+    "src/filesystem/emscripten/SDL_sysfilesystem.c",
+    "src/joystick/emscripten/SDL_sysjoystick.c",
+    "src/locale/emscripten/SDL_syslocale.c",
+    "src/misc/emscripten/SDL_sysurl.c",
+    "src/power/emscripten/SDL_syspower.c",
+    "src/video/emscripten/SDL_emscriptenevents.c",
+    "src/video/emscripten/SDL_emscriptenframebuffer.c",
+    "src/video/emscripten/SDL_emscriptenmouse.c",
+    "src/video/emscripten/SDL_emscriptenopengles.c",
+    "src/video/emscripten/SDL_emscriptenvideo.c",
+
+    "src/timer/unix/SDL_systimer.c",
+    "src/loadso/dlopen/SDL_sysloadso.c",
+    "src/audio/disk/SDL_diskaudio.c",
+    "src/render/opengles2/SDL_render_gles2.c",
+    "src/render/opengles2/SDL_shaders_gles2.c",
+    "src/sensor/dummy/SDL_dummysensor.c",
+
+    "src/thread/pthread/SDL_syscond.c",
+    "src/thread/pthread/SDL_sysmutex.c",
+    "src/thread/pthread/SDL_syssem.c",
+    "src/thread/pthread/SDL_systhread.c",
+    "src/thread/pthread/SDL_systls.c",
+};
+
+const SdlOption = struct {
+    name: []const u8,
+    desc: []const u8,
+    default: bool,
+    // SDL configs affect the public SDL_config.h header file. Any values
+    // should occur in a header file in the include directory.
+    sdl_configs: []const []const u8,
+    // C Macros are similar to SDL configs but aren't present in the public
+    // headers and only affect the SDL implementation.  None of the values
+    // should occur in the include directory.
+    c_macros: []const []const u8 = &.{},
+    src_files: []const []const u8,
+    system_libs: []const []const u8,
+};
+const render_driver_sw = SdlOption{
+    .name = "render_driver_software",
+    .desc = "enable the software render driver",
+    .default = true,
+    .sdl_configs = &.{},
+    .c_macros = &.{"SDL_VIDEO_RENDER_SW"},
+    .src_files = &.{
+        "src/render/software/SDL_blendfillrect.c",
+        "src/render/software/SDL_blendline.c",
+        "src/render/software/SDL_blendpoint.c",
+        "src/render/software/SDL_drawline.c",
+        "src/render/software/SDL_drawpoint.c",
+        "src/render/software/SDL_render_sw.c",
+        "src/render/software/SDL_rotate.c",
+        "src/render/software/SDL_triangle.c",
+    },
+    .system_libs = &.{},
+};
+const linux_options = [_]SdlOption{
+    render_driver_sw,
+    .{
+        .name = "video_driver_x11",
+        .desc = "enable the x11 video driver",
+        .default = true,
+        .sdl_configs = &.{
+            "SDL_VIDEO_DRIVER_X11",
+            "SDL_VIDEO_DRIVER_X11_SUPPORTS_GENERIC_EVENTS",
+        },
+        .src_files = &.{},
+        .system_libs = &.{ "X11", "Xext" },
+    },
+    .{
+        .name = "render_driver_ogl",
+        .desc = "enable the opengl render driver",
+        .default = true,
+        .sdl_configs = &.{"SDL_VIDEO_RENDER_OGL"},
+        .src_files = &.{
+            "src/render/opengl/SDL_render_gl.c",
+            "src/render/opengl/SDL_shaders_gl.c",
+        },
+        .system_libs = &.{},
+    },
+    .{
+        .name = "render_driver_ogl_es",
+        .desc = "enable the opengl es render driver",
+        .default = true,
+        .sdl_configs = &.{"SDL_VIDEO_RENDER_OGL_ES"},
+        .src_files = &.{
+            "src/render/opengles/SDL_render_gles.c",
+        },
+        .system_libs = &.{},
+    },
+    .{
+        .name = "render_driver_ogl_es2",
+        .desc = "enable the opengl es2 render driver",
+        .default = true,
+        .sdl_configs = &.{"SDL_VIDEO_RENDER_OGL_ES2"},
+        .src_files = &.{
+            "src/render/opengles2/SDL_render_gles2.c",
+            "src/render/opengles2/SDL_shaders_gles2.c",
+        },
+        .system_libs = &.{},
+    },
+    .{
+        .name = "audio_driver_pulse",
+        .desc = "enable the pulse audio driver",
+        .default = true,
+        .sdl_configs = &.{"SDL_AUDIO_DRIVER_PULSEAUDIO"},
+        .src_files = &.{"src/audio/pulseaudio/SDL_pulseaudio.c"},
+        .system_libs = &.{"pulse"},
+    },
+    .{
+        .name = "audio_driver_alsa",
+        .desc = "enable the alsa audio driver",
+        .default = false,
+        .sdl_configs = &.{"SDL_AUDIO_DRIVER_ALSA"},
+        .src_files = &.{"src/audio/alsa/SDL_alsa_audio.c"},
+        .system_libs = &.{"alsa"},
+    },
+};
+
+fn applyOptions(
+    b: *std.Build,
+    lib: *std.Build.Step.Compile,
+    files: *std.ArrayList([]const u8),
+    config_header: *std.Build.Step.ConfigHeader,
+    comptime options: []const SdlOption,
+) void {
+    inline for (options) |option| {
+        const enabled = if (b.option(bool, option.name, option.desc)) |o| o else option.default;
+        for (option.c_macros) |name| {
+            lib.root_module.addCMacro(name, if (enabled) "1" else "0");
+        }
+        for (option.sdl_configs) |config| {
+            config_header.addValue(config, bool, enabled);
+        }
+        if (enabled) {
+            files.appendSlice(b.allocator, option.src_files) catch @panic("OOM");
+            for (option.system_libs) |lib_name| {
+                lib.root_module.linkSystemLibrary(lib_name, .{});
+            }
+        }
+    }
+}
+
+fn linuxConfigHeader(b: *std.Build, arch: std.Target.Cpu.Arch) *std.Build.Step.ConfigHeader {
+    return b.addConfigHeader(.{
+        .style = .{ .cmake = b.path("include/SDL_config.h.cmake") },
+        .include_path = "SDL_config.h",
+    }, .{
+        // SDL_config.h.cmake values and comments with ordering and grouping preserved:
+
+        .HAVE_CONST = 1,
+        .HAVE_INLINE = 1,
+        .HAVE_VOLATILE = 1,
+
+        .HAVE_GCC_ATOMICS = 0,
+        .HAVE_GCC_SYNC_LOCK_TEST_AND_SET = 0,
+
+        // Comment this if you want to build without any C library requirements
+        .HAVE_LIBC = 1,
+
+        // Useful headers
+        .STDC_HEADERS = 1,
+        .HAVE_ALLOCA_H = 1,
+        .HAVE_CTYPE_H = 1,
+        .HAVE_FLOAT_H = 1,
+        .HAVE_ICONV_H = 1,
+        .HAVE_INTTYPES_H = 1,
+        .HAVE_LIMITS_H = 1,
+        .HAVE_MALLOC_H = 1,
+        .HAVE_MATH_H = 1,
+        .HAVE_MEMORY_H = 1,
+        .HAVE_SIGNAL_H = 1,
+        .HAVE_STDARG_H = 1,
+        .HAVE_STDDEF_H = 1,
+        .HAVE_STDINT_H = 1,
+        .HAVE_STDIO_H = 1,
+        .HAVE_STDLIB_H = 1,
+        .HAVE_STRINGS_H = 1,
+        .HAVE_STRING_H = 1,
+        .HAVE_SYS_TYPES_H = 1,
+        .HAVE_WCHAR_H = 1,
+        .HAVE_LINUX_INPUT_H = true,
+        .HAVE_PTHREAD_NP_H = 0,
+        .HAVE_LIBUNWIND_H = 1,
+
+        // C library functions
+        .HAVE_DLOPEN = 1,
+        .HAVE_MALLOC = 1,
+        .HAVE_CALLOC = 1,
+        .HAVE_REALLOC = 1,
+        .HAVE_FREE = 1,
+        .HAVE_ALLOCA = 1,
+
+        // Don't use C runtime versions of these on Windows
+        .HAVE_GETENV = 1,
+        .HAVE_SETENV = 1,
+        .HAVE_PUTENV = 1,
+        .HAVE_UNSETENV = 1,
+
+        .HAVE_QSORT = 1,
+        .HAVE_BSEARCH = 1,
+        .HAVE_ABS = 1,
+        .HAVE_BCOPY = 1,
+        .HAVE_MEMSET = 1,
+        .HAVE_MEMCPY = 1,
+        .HAVE_MEMMOVE = 1,
+        .HAVE_MEMCMP = 1,
+        .HAVE_WCSLEN = 1,
+        .HAVE_WCSLCPY = 0,
+        .HAVE_WCSLCAT = 0,
+        .HAVE__WCSDUP = 0,
+        .HAVE_WCSDUP = 1,
+        .HAVE_WCSSTR = 1,
+        .HAVE_WCSCMP = 1,
+        .HAVE_WCSNCMP = 1,
+        .HAVE_WCSCASECMP = 1,
+        .HAVE__WCSICMP = 0,
+        .HAVE_WCSNCASECMP = 1,
+        .HAVE__WCSNICMP = 0,
+        .HAVE_STRLEN = 1,
+        .HAVE_STRLCPY = 0,
+        .HAVE_STRLCAT = 0,
+        .HAVE__STRREV = 0,
+        .HAVE__STRUPR = 0,
+        .HAVE__STRLWR = 0,
+        .HAVE_INDEX = 1,
+        .HAVE_RINDEX = 1,
+        .HAVE_STRCHR = 1,
+        .HAVE_STRRCHR = 1,
+        .HAVE_STRSTR = 1,
+        .HAVE_STRTOK_R = 1,
+        .HAVE_ITOA = 0,
+        .HAVE__LTOA = 0,
+        .HAVE__UITOA = 0,
+        .HAVE__ULTOA = 0,
+        .HAVE_STRTOL = 1,
+        .HAVE_STRTOUL = 1,
+        .HAVE__I64TOA = 0,
+        .HAVE__UI64TOA = 0,
+        .HAVE_STRTOLL = 1,
+        .HAVE_STRTOULL = 1,
+        .HAVE_STRTOD = 1,
+        .HAVE_ATOI = 1,
+        .HAVE_ATOF = 1,
+        .HAVE_STRCMP = 1,
+        .HAVE_STRNCMP = 1,
+        .HAVE__STRICMP = 0,
+        .HAVE_STRCASECMP = 1,
+        .HAVE__STRNICMP = 0,
+        .HAVE_STRNCASECMP = 1,
+        .HAVE_STRCASESTR = 1,
+        .HAVE_SSCANF = 1,
+        .HAVE_VSSCANF = 1,
+        .HAVE_VSNPRINTF = 1,
+        .HAVE_M_PI = 1,
+        .HAVE_ACOS = 1,
+        .HAVE_ACOSF = 1,
+        .HAVE_ASIN = 1,
+        .HAVE_ASINF = 1,
+        .HAVE_ATAN = 1,
+        .HAVE_ATANF = 1,
+        .HAVE_ATAN2 = 1,
+        .HAVE_ATAN2F = 1,
+        .HAVE_CEIL = 1,
+        .HAVE_CEILF = 1,
+        .HAVE_COPYSIGN = 1,
+        .HAVE_COPYSIGNF = 1,
+        .HAVE_COS = 1,
+        .HAVE_COSF = 1,
+        .HAVE_EXP = 1,
+        .HAVE_EXPF = 1,
+        .HAVE_FABS = 1,
+        .HAVE_FABSF = 1,
+        .HAVE_FLOOR = 1,
+        .HAVE_FLOORF = 1,
+        .HAVE_FMOD = 1,
+        .HAVE_FMODF = 1,
+        .HAVE_LOG = 1,
+        .HAVE_LOGF = 1,
+        .HAVE_LOG10 = 1,
+        .HAVE_LOG10F = 1,
+        .HAVE_LROUND = 1,
+        .HAVE_LROUNDF = 1,
+        .HAVE_POW = 1,
+        .HAVE_POWF = 1,
+        .HAVE_ROUND = 1,
+        .HAVE_ROUNDF = 1,
+        .HAVE_SCALBN = 1,
+        .HAVE_SCALBNF = 1,
+        .HAVE_SIN = 1,
+        .HAVE_SINF = 1,
+        .HAVE_SQRT = 1,
+        .HAVE_SQRTF = 1,
+        .HAVE_TAN = 1,
+        .HAVE_TANF = 1,
+        .HAVE_TRUNC = 1,
+        .HAVE_TRUNCF = 1,
+        .HAVE_FOPEN64 = 1,
+        .HAVE_FSEEKO = 1,
+        .HAVE_FSEEKO64 = 1,
+        .HAVE_MEMFD_CREATE = 1,
+        .HAVE_POSIX_FALLOCATE = 1,
+        .HAVE_SIGACTION = 1,
+        .HAVE_SIGTIMEDWAIT = true,
+        .HAVE_SA_SIGACTION = 1,
+        .HAVE_SETJMP = 1,
+        .HAVE_NANOSLEEP = 1,
+        .HAVE_SYSCONF = 1,
+        .HAVE_SYSCTLBYNAME = false,
+        .HAVE_CLOCK_GETTIME = 1,
+        .HAVE_GETPAGESIZE = 1,
+        .HAVE_MPROTECT = 1,
+        .HAVE_ICONV = 1,
+        .SDL_USE_LIBICONV = 1,
+        .HAVE_PTHREAD_SETNAME_NP = 0,
+        .HAVE_PTHREAD_SET_NAME_NP = 0,
+        .HAVE_SEM_TIMEDWAIT = 1,
+        .HAVE_GETAUXVAL = 1,
+        .HAVE_ELF_AUX_INFO = 1,
+        .HAVE_POLL = 1,
+        .HAVE__EXIT = 0,
+
+        .HAVE_ALTIVEC_H = 0,
+        .HAVE_DBUS_DBUS_H = 0,
+        .HAVE_FCITX = 0,
+        .HAVE_IBUS_IBUS_H = 0,
+        .HAVE_SYS_INOTIFY_H = true,
+        .HAVE_INOTIFY_INIT = true,
+        .HAVE_INOTIFY_INIT1 = true,
+        .HAVE_INOTIFY = true,
+        .HAVE_LIBUSB = 0,
+        .HAVE_O_CLOEXEC = 0,
+
+        // Apple platforms might be building universal binaries, where Intel builds
+        // can use immintrin.h but other architectures can't.
+        // Non-Apple platforms can use the normal CMake check for this.
+        .HAVE_IMMINTRIN_H = arch.isX86(),
+
+        .HAVE_LIBUDEV_H = 0,
+        .HAVE_LIBSAMPLERATE_H = 0,
+        .HAVE_LIBDECOR_H = 0,
+
+        .HAVE_D3D_H = 0,
+        .HAVE_D3D11_H = 0,
+        .HAVE_D3D12_H = 0,
+        .HAVE_DDRAW_H = 0,
+        .HAVE_DSOUND_H = 0,
+        .HAVE_DINPUT_H = 0,
+        .HAVE_XINPUT_H = 0,
+        .HAVE_WINDOWS_GAMING_INPUT_H = 0,
+        .HAVE_DXGI_H = 0,
+
+        .HAVE_MMDEVICEAPI_H = 0,
+        .HAVE_AUDIOCLIENT_H = 0,
+        .HAVE_TPCSHRD_H = 0,
+        .HAVE_SENSORSAPI_H = 0,
+        .HAVE_ROAPI_H = 0,
+        .HAVE_SHELLSCALINGAPI_H = 0,
+
+        .USE_POSIX_SPAWN = 0,
+
+        // SDL internal assertion support
+        .SDL_DEFAULT_ASSERT_LEVEL_CONFIGURED = 0,
+        .SDL_DEFAULT_ASSERT_LEVEL = .undef,
+
+        // Allow disabling of core subsystems
+        .SDL_ATOMIC_DISABLED = 0,
+        .SDL_AUDIO_DISABLED = 0,
+        .SDL_CPUINFO_DISABLED = 0,
+        .SDL_EVENTS_DISABLED = 0,
+        .SDL_FILE_DISABLED = 0,
+        .SDL_JOYSTICK_DISABLED = 0,
+        .SDL_HAPTIC_DISABLED = 0,
+        .SDL_HIDAPI_DISABLED = 0,
+        .SDL_SENSOR_DISABLED = 0,
+        .SDL_LOADSO_DISABLED = 0,
+        .SDL_RENDER_DISABLED = 0,
+        .SDL_THREADS_DISABLED = 0,
+        .SDL_TIMERS_DISABLED = 0,
+        .SDL_VIDEO_DISABLED = 0,
+        .SDL_POWER_DISABLED = 0,
+        .SDL_FILESYSTEM_DISABLED = 0,
+        .SDL_LOCALE_DISABLED = 0,
+        .SDL_MISC_DISABLED = 0,
+
+        // Enable various audio drivers
+        .SDL_AUDIO_DRIVER_ALSA = 0,
+        .SDL_AUDIO_DRIVER_ALSA_DYNAMIC = 0,
+        .SDL_AUDIO_DRIVER_ANDROID = 0,
+        .SDL_AUDIO_DRIVER_OPENSLES = 0,
+        .SDL_AUDIO_DRIVER_AAUDIO = 0,
+        .SDL_AUDIO_DRIVER_ARTS = 0,
+        .SDL_AUDIO_DRIVER_ARTS_DYNAMIC = 0,
+        .SDL_AUDIO_DRIVER_COREAUDIO = 0,
+        .SDL_AUDIO_DRIVER_DISK = 0,
+        .SDL_AUDIO_DRIVER_DSOUND = 0,
+        .SDL_AUDIO_DRIVER_DUMMY = 0,
+        .SDL_AUDIO_DRIVER_EMSCRIPTEN = 0,
+        .SDL_AUDIO_DRIVER_ESD = 0,
+        .SDL_AUDIO_DRIVER_ESD_DYNAMIC = 0,
+        .SDL_AUDIO_DRIVER_FUSIONSOUND = 0,
+        .SDL_AUDIO_DRIVER_FUSIONSOUND_DYNAMIC = 0,
+        .SDL_AUDIO_DRIVER_HAIKU = 0,
+        .SDL_AUDIO_DRIVER_JACK = 0,
+        .SDL_AUDIO_DRIVER_JACK_DYNAMIC = 0,
+        .SDL_AUDIO_DRIVER_NAS = 0,
+        .SDL_AUDIO_DRIVER_NAS_DYNAMIC = 0,
+        .SDL_AUDIO_DRIVER_NETBSD = 0,
+        .SDL_AUDIO_DRIVER_OSS = 0,
+        .SDL_AUDIO_DRIVER_PAUDIO = 0,
+        .SDL_AUDIO_DRIVER_PIPEWIRE = 0,
+        .SDL_AUDIO_DRIVER_PIPEWIRE_DYNAMIC = 0,
+        .SDL_AUDIO_DRIVER_PULSEAUDIO = 0,
+        .SDL_AUDIO_DRIVER_PULSEAUDIO_DYNAMIC = 0,
+        .SDL_AUDIO_DRIVER_QSA = 0,
+        .SDL_AUDIO_DRIVER_SNDIO = 0,
+        .SDL_AUDIO_DRIVER_SNDIO_DYNAMIC = 0,
+        .SDL_AUDIO_DRIVER_SUNAUDIO = 0,
+        .SDL_AUDIO_DRIVER_WASAPI = 0,
+        .SDL_AUDIO_DRIVER_WINMM = 0,
+        .SDL_AUDIO_DRIVER_OS2 = 0,
+        .SDL_AUDIO_DRIVER_VITA = 0,
+        .SDL_AUDIO_DRIVER_PSP = 0,
+        .SDL_AUDIO_DRIVER_PS2 = 0,
+        .SDL_AUDIO_DRIVER_N3DS = 0,
+
+        // Enable various input drivers
+        .SDL_INPUT_LINUXEV = true,
+        .SDL_INPUT_LINUXKD = true,
+        .SDL_INPUT_FBSDKBIO = 0,
+        .SDL_INPUT_WSCONS = 0,
+        .SDL_JOYSTICK_ANDROID = 0,
+        .SDL_JOYSTICK_HAIKU = 0,
+        .SDL_JOYSTICK_WGI = 0,
+        .SDL_JOYSTICK_DINPUT = 0,
+        .SDL_JOYSTICK_XINPUT = 0,
+        .SDL_JOYSTICK_DUMMY = 0,
+        .SDL_JOYSTICK_IOKIT = 0,
+        .SDL_JOYSTICK_MFI = 0,
+        .SDL_JOYSTICK_LINUX = true,
+        .SDL_JOYSTICK_OS2 = 0,
+        .SDL_JOYSTICK_USBHID = 0,
+        .SDL_HAVE_MACHINE_JOYSTICK_H = 0,
+        .SDL_JOYSTICK_HIDAPI = 0,
+        .SDL_JOYSTICK_RAWINPUT = 0,
+        .SDL_JOYSTICK_EMSCRIPTEN = 0,
+        .SDL_JOYSTICK_VIRTUAL = 0,
+        .SDL_JOYSTICK_VITA = 0,
+        .SDL_JOYSTICK_PSP = 0,
+        .SDL_JOYSTICK_PS2 = 0,
+        .SDL_JOYSTICK_N3DS = 0,
+        .SDL_HAPTIC_DUMMY = 0,
+        .SDL_HAPTIC_LINUX = true,
+        .SDL_HAPTIC_IOKIT = 0,
+        .SDL_HAPTIC_DINPUT = 0,
+        .SDL_HAPTIC_XINPUT = 0,
+        .SDL_HAPTIC_ANDROID = 0,
+        .SDL_LIBUSB_DYNAMIC = 0,
+        .SDL_UDEV_DYNAMIC = 0,
+
+        // Enable various sensor drivers
+        .SDL_SENSOR_ANDROID = 0,
+        .SDL_SENSOR_COREMOTION = 0,
+        .SDL_SENSOR_WINDOWS = 0,
+        .SDL_SENSOR_DUMMY = 0,
+        .SDL_SENSOR_VITA = 0,
+        .SDL_SENSOR_N3DS = 0,
+
+        // Enable various shared object loading systems
+        .SDL_LOADSO_DLOPEN = true,
+        .SDL_LOADSO_DUMMY = 0,
+        .SDL_LOADSO_LDG = 0,
+        .SDL_LOADSO_WINDOWS = 0,
+        .SDL_LOADSO_OS2 = 0,
+
+        // Enable various threading systems
+        .SDL_THREAD_GENERIC_COND_SUFFIX = 0,
+        .SDL_THREAD_PTHREAD = true,
+        .SDL_THREAD_PTHREAD_RECURSIVE_MUTEX = true,
+        .SDL_THREAD_PTHREAD_RECURSIVE_MUTEX_NP = 0,
+        .SDL_THREAD_WINDOWS = 0,
+        .SDL_THREAD_OS2 = 0,
+        .SDL_THREAD_VITA = 0,
+        .SDL_THREAD_PSP = 0,
+        .SDL_THREAD_PS2 = 0,
+        .SDL_THREAD_N3DS = 0,
+
+        // Enable various timer systems
+        .SDL_TIMER_HAIKU = 0,
+        .SDL_TIMER_DUMMY = 0,
+        .SDL_TIMER_UNIX = true,
+        .SDL_TIMER_WINDOWS = 0,
+        .SDL_TIMER_OS2 = 0,
+        .SDL_TIMER_VITA = 0,
+        .SDL_TIMER_PSP = 0,
+        .SDL_TIMER_PS2 = 0,
+        .SDL_TIMER_N3DS = 0,
+
+        // Enable various video drivers
+        .SDL_VIDEO_DRIVER_ANDROID = 0,
+        .SDL_VIDEO_DRIVER_EMSCRIPTEN = 0,
+        .SDL_VIDEO_DRIVER_HAIKU = 0,
+        .SDL_VIDEO_DRIVER_COCOA = 0,
+        .SDL_VIDEO_DRIVER_UIKIT = 0,
+        .SDL_VIDEO_DRIVER_DIRECTFB = 0,
+        .SDL_VIDEO_DRIVER_DIRECTFB_DYNAMIC = 0,
+        .SDL_VIDEO_DRIVER_DUMMY = 0,
+        .SDL_VIDEO_DRIVER_OFFSCREEN = 0,
+        .SDL_VIDEO_DRIVER_WINDOWS = 0,
+        .SDL_VIDEO_DRIVER_WINRT = 0,
+        .SDL_VIDEO_DRIVER_WAYLAND = 0,
+        .SDL_VIDEO_DRIVER_RPI = 0,
+        .SDL_VIDEO_DRIVER_VIVANTE = 0,
+        .SDL_VIDEO_DRIVER_VIVANTE_VDK = 0,
+        .SDL_VIDEO_DRIVER_OS2 = 0,
+        .SDL_VIDEO_DRIVER_QNX = 0,
+        .SDL_VIDEO_DRIVER_RISCOS = 0,
+        .SDL_VIDEO_DRIVER_PSP = 0,
+        .SDL_VIDEO_DRIVER_PS2 = 0,
+
+        .SDL_VIDEO_DRIVER_KMSDRM = 0,
+        .SDL_VIDEO_DRIVER_KMSDRM_DYNAMIC = 0,
+        .SDL_VIDEO_DRIVER_KMSDRM_DYNAMIC_GBM = 0,
+
+        .SDL_VIDEO_DRIVER_WAYLAND_QT_TOUCH = 0,
+        .SDL_VIDEO_DRIVER_WAYLAND_DYNAMIC = 0,
+        .SDL_VIDEO_DRIVER_WAYLAND_DYNAMIC_EGL = 0,
+        .SDL_VIDEO_DRIVER_WAYLAND_DYNAMIC_CURSOR = 0,
+        .SDL_VIDEO_DRIVER_WAYLAND_DYNAMIC_XKBCOMMON = 0,
+        .SDL_VIDEO_DRIVER_WAYLAND_DYNAMIC_LIBDECOR = 0,
+
+        .SDL_VIDEO_DRIVER_X11 = 0,
+        .SDL_VIDEO_DRIVER_X11_DYNAMIC = 0,
+        .SDL_VIDEO_DRIVER_X11_DYNAMIC_XEXT = 0,
+        .SDL_VIDEO_DRIVER_X11_DYNAMIC_XCURSOR = 0,
+        .SDL_VIDEO_DRIVER_X11_DYNAMIC_XINPUT2 = 0,
+        .SDL_VIDEO_DRIVER_X11_DYNAMIC_XFIXES = 0,
+        .SDL_VIDEO_DRIVER_X11_DYNAMIC_XRANDR = 0,
+        .SDL_VIDEO_DRIVER_X11_DYNAMIC_XSS = 0,
+        .SDL_VIDEO_DRIVER_X11_XCURSOR = 0,
+        .SDL_VIDEO_DRIVER_X11_XDBE = 0,
+        .SDL_VIDEO_DRIVER_X11_XINPUT2 = 0,
+        .SDL_VIDEO_DRIVER_X11_XINPUT2_SUPPORTS_MULTITOUCH = 0,
+        .SDL_VIDEO_DRIVER_X11_XFIXES = 0,
+        .SDL_VIDEO_DRIVER_X11_XRANDR = 0,
+        .SDL_VIDEO_DRIVER_X11_XSCRNSAVER = 0,
+        .SDL_VIDEO_DRIVER_X11_XSHAPE = 0,
+        .SDL_VIDEO_DRIVER_X11_SUPPORTS_GENERIC_EVENTS = 0,
+        .SDL_VIDEO_DRIVER_X11_HAS_XKBKEYCODETOKEYSYM = 0,
+        .SDL_VIDEO_DRIVER_VITA = 0,
+        .SDL_VIDEO_DRIVER_N3DS = 0,
+
+        .SDL_VIDEO_RENDER_D3D = 0,
+        .SDL_VIDEO_RENDER_D3D11 = 0,
+        .SDL_VIDEO_RENDER_D3D12 = 0,
+        .SDL_VIDEO_RENDER_OGL = 0,
+        .SDL_VIDEO_RENDER_OGL_ES = 0,
+        .SDL_VIDEO_RENDER_OGL_ES2 = 0,
+        .SDL_VIDEO_RENDER_DIRECTFB = 0,
+        .SDL_VIDEO_RENDER_METAL = 0,
+        .SDL_VIDEO_RENDER_VITA_GXM = 0,
+        .SDL_VIDEO_RENDER_PS2 = 0,
+        .SDL_VIDEO_RENDER_PSP = 0,
+
+        // Enable OpenGL support
+        .SDL_VIDEO_OPENGL = 0,
+        .SDL_VIDEO_OPENGL_ES = 0,
+        .SDL_VIDEO_OPENGL_ES2 = 0,
+        .SDL_VIDEO_OPENGL_BGL = 0,
+        .SDL_VIDEO_OPENGL_CGL = 0,
+        .SDL_VIDEO_OPENGL_GLX = 0,
+        .SDL_VIDEO_OPENGL_WGL = 0,
+        .SDL_VIDEO_OPENGL_EGL = 0,
+        .SDL_VIDEO_OPENGL_OSMESA = 0,
+        .SDL_VIDEO_OPENGL_OSMESA_DYNAMIC = 0,
+
+        // Enable Vulkan support
+        .SDL_VIDEO_VULKAN = 0,
+
+        // Enable Metal support
+        .SDL_VIDEO_METAL = 0,
+
+        // Enable system power support
+        .SDL_POWER_ANDROID = 0,
+        .SDL_POWER_LINUX = true,
+        .SDL_POWER_WINDOWS = 0,
+        .SDL_POWER_WINRT = 0,
+        .SDL_POWER_MACOSX = 0,
+        .SDL_POWER_UIKIT = 0,
+        .SDL_POWER_HAIKU = 0,
+        .SDL_POWER_EMSCRIPTEN = 0,
+        .SDL_POWER_HARDWIRED = 0,
+        .SDL_POWER_VITA = 0,
+        .SDL_POWER_PSP = 0,
+        .SDL_POWER_N3DS = 0,
+
+        // Enable system filesystem support
+        .SDL_FILESYSTEM_ANDROID = 0,
+        .SDL_FILESYSTEM_HAIKU = 0,
+        .SDL_FILESYSTEM_COCOA = 0,
+        .SDL_FILESYSTEM_DUMMY = 0,
+        .SDL_FILESYSTEM_RISCOS = 0,
+        .SDL_FILESYSTEM_UNIX = true,
+        .SDL_FILESYSTEM_WINDOWS = 0,
+        .SDL_FILESYSTEM_EMSCRIPTEN = 0,
+        .SDL_FILESYSTEM_OS2 = 0,
+        .SDL_FILESYSTEM_VITA = 0,
+        .SDL_FILESYSTEM_PSP = 0,
+        .SDL_FILESYSTEM_PS2 = 0,
+        .SDL_FILESYSTEM_N3DS = 0,
+
+        // Enable misc subsystem
+        .SDL_MISC_DUMMY = 0,
+
+        // Enable locale subsystem
+        .SDL_LOCALE_DUMMY = 0,
+
+        // Enable assembly routines
+        .SDL_ALTIVEC_BLITTERS = 0,
+        .SDL_ARM_SIMD_BLITTERS = 0,
+        .SDL_ARM_NEON_BLITTERS = 0,
+
+        // Whether SDL_DYNAMIC_API needs dlopen
+        .DYNAPI_NEEDS_DLOPEN = 0,
+
+        // Enable dynamic libsamplerate support
+        .SDL_LIBSAMPLERATE_DYNAMIC = 0,
+
+        // Enable ime support
+        .SDL_USE_IME = 0,
+
+        // Platform specific definitions
+        .SDL_IPHONE_KEYBOARD = 0,
+        .SDL_IPHONE_LAUNCHSCREEN = 0,
+
+        .SDL_VIDEO_VITA_PIB = 0,
+        .SDL_VIDEO_VITA_PVR = 0,
+        .SDL_VIDEO_VITA_PVR_OGL = 0,
+
+        .SDL_HAVE_LIBDECOR_GET_MIN_MAX = 0,
+    });
+}

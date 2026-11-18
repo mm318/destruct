@@ -17,7 +17,7 @@
             .path = "assets",
         },
         .sdl = .{
-            .path = "external_libs/sdl",
+            .path = "deps/sdl",
         },
         .emsdk = .{
             .url = "git+https://github.com/emscripten-core/emsdk?ref=7.0.0#708dcbcc9ee23bc7d2dad44fc90db377e38b771c",
@@ -33,7 +33,7 @@
         "build.zig",
         "build.zig.zon",
         "src",
-        "external_libs",
+        "deps",
         "web_assets",
         "assets",
         "README.md",

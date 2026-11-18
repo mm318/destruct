@@ -16,6 +16,11 @@ git clone https://github.com/mm318/destruct.git
 All commands should be run from the newly downloaded `destruct` directory.
 Use Zig 0.17.1.
 
+SDL 2.32.10 is vendored in `deps/sdl` for Linux and Emscripten, with its Zig
+build and a trimmed source distribution.
+See [the dependency README](deps/sdl/README.md) for its source, archive
+checksum, retained files, and local patches.
+
 On Ubuntu, install the native build dependencies:
 ```bash
 sudo apt install libxext-dev libgles-dev libglx-dev libpulse-dev
