@@ -60,6 +60,10 @@ zig build -Doptimize=fast -Dtarget=wasm32-emscripten run
 The web build is installed to `zig-out/web/index.html`. Serve the whole
 `zig-out/web` directory over HTTP; pthreads require cross-origin isolation,
 provided by the included `coi-serviceworker.js` on localhost or HTTPS.
+The browser loop uses `requestAnimationFrame` without Asyncify. Intro, menus,
+palette fades, help, and pause screens return control between frames. Gameplay
+keeps its original fixed tick rate and presents at most once per display refresh;
+hidden tabs do not accumulate simulation time.
 Asset extraction runs on the build host and stores generated files in the Zig
 build cache.
 

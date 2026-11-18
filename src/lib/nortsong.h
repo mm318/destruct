@@ -80,6 +80,7 @@ extern JE_word tyrMusicVolume, fxVolume;
 extern const JE_word fxPlayVol;
 
 void setDelay(int delay);
+Uint32 get_delay_period(void);
 
 void wait_delay(void);
 void service_wait_delay(void);

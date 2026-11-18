@@ -709,7 +709,7 @@ void network_tyrian_halt(unsigned int err, bool attempt_sync)
 	JE_loadPic(VGAScreen, 2, false);
 	JE_dString(VGAScreen, JE_fontCenter(err_msg[err], SMALL_FONT_SHAPES), 140, err_msg[err], SMALL_FONT_SHAPES);
 
-	JE_showVGA();
+	JE_showVGA(false);
 	fade_palette(colors, 10, 0, 255);
 
 	if (attempt_sync)

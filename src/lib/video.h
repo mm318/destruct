@@ -57,7 +57,8 @@ bool set_scaling_mode_by_name(const char *name);
 void deinit_video(void);
 
 void JE_clr256(SDL_Surface *);
-void JE_showVGA(void);
+// Web builds queue updates unless present is true; native builds present immediately.
+void JE_showVGA(bool present);
 
 void mapScreenPointToWindow(Sint32 *inout_x, Sint32 *inout_y);
 void mapWindowPointToScreen(Sint32 *inout_x, Sint32 *inout_y);

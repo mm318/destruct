@@ -37,6 +37,7 @@ JE_boolean mouse_pressed[4] = {false, false, false, false};
 Sint32 mouse_x, mouse_y;
 
 bool windowHasFocus;
+bool quit_requested;
 
 Uint8 keysactive[SDL_NUM_SCANCODES];
 
@@ -206,9 +207,14 @@ void service_SDL_events(JE_boolean clear_new)
 				break;
 
 			case SDL_QUIT:
+#ifdef __EMSCRIPTEN__
+				quit_requested = true;
+				return;
+#else
 				/* TODO: Call the cleanup code here. */
 				exit(0);
 				break;
+#endif
 		}
 	}
 }

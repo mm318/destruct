@@ -139,7 +139,7 @@ void fade_palette(Palette colors, int steps, unsigned int first_color, unsigned 
 		
 		step_fade_palette(diff, steps, first_color, last_color);
 		
-		JE_showVGA();
+		JE_showVGA(false);
 		
 		service_wait_delay();
 	}
@@ -158,7 +158,7 @@ void fade_solid(SDL_Color color, int steps, unsigned int first_color, unsigned i
 		
 		step_fade_palette(diff, steps, first_color, last_color);
 		
-		JE_showVGA();
+		JE_showVGA(false);
 		
 		service_wait_delay();
 	}

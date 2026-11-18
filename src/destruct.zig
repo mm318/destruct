@@ -1,4 +1,5 @@
 const std = @import("std");
+const builtin = @import("builtin");
 const SDL = @import("sdl2");
 
 const c = @import("c");
@@ -28,40 +29,46 @@ destructPrevScreen: *c.SDL_Surface = undefined,
 // Startup
 pub fn JE_destructGame() void {
     var self = Destruct{};
+    self.init();
+    defer self.deinit();
 
+    c.fade_black(1);
+    self.JE_destructMain();
+}
+
+pub fn init(self: *Destruct) void {
     // This is the entry function.  Any one-time actions we need to perform can go in here.
     c.JE_clr256(c.VGAScreen);
-    c.JE_showVGA();
+    c.JE_showVGA(false);
 
     c.load_destruct_config(&c.opentyrian_config, &self.config);
 
     // malloc things that have customizable sizes
     self.shotRec = @ptrCast(@alignCast(c.malloc(@sizeOf(c.destruct_shot_s) * self.config.max_shots).?));
-    defer c.free(self.shotRec);
     self.exploRec = @ptrCast(@alignCast(c.malloc(@sizeOf(c.destruct_explo_s) * self.config.max_explosions).?));
-    defer c.free(self.exploRec);
     self.world.mapWalls = @ptrCast(@alignCast(c.malloc(@sizeOf(c.destruct_wall_s) * self.config.max_walls).?));
-    defer c.free(self.world.mapWalls);
 
     //Malloc enough structures to cover all of this session's possible needs.
     for (0..10) |i| {
         self.config.max_installations = c.MAX(self.config.max_installations, c.basetypes[i][0]);
     }
     self.destruct_players[c.PLAYER_LEFT].unit = @ptrCast(@alignCast(c.malloc(@sizeOf(c.destruct_unit_s) * self.config.max_installations).?));
-    defer c.free(self.destruct_players[c.PLAYER_LEFT].unit);
     self.destruct_players[c.PLAYER_RIGHT].unit = @ptrCast(@alignCast(c.malloc(@sizeOf(c.destruct_unit_s) * self.config.max_installations).?));
-    defer c.free(self.destruct_players[c.PLAYER_RIGHT].unit);
 
     self.world.VGAScreen = c.VGAScreen;
     self.destructInternalScreen = c.game_screen;
     self.destructPrevScreen = c.VGAScreen2;
 
     c.JE_loadCompShapes(assets.game_sprites.ptr, assets.game_sprites.len, &c.destructSpriteSheet);
-    defer c.free_sprite2s(&c.destructSpriteSheet);
+}
 
-    c.fade_black(1);
-
-    self.JE_destructMain();
+pub fn deinit(self: *Destruct) void {
+    c.free_sprite2s(&c.destructSpriteSheet);
+    c.free(self.destruct_players[c.PLAYER_RIGHT].unit);
+    c.free(self.destruct_players[c.PLAYER_LEFT].unit);
+    c.free(self.world.mapWalls);
+    c.free(self.exploRec);
+    c.free(self.shotRec);
 }
 
 fn JE_destructMain(self: *Destruct) void {
@@ -317,7 +324,7 @@ const NewGameMenu = struct {
     }
 };
 
-const ControllerMenu = struct {
+pub const ControllerMenu = struct {
     const KEY_ORDER = [_]c.de_keys_t{
         c.KEY_FIRE,
         c.KEY_CYUP,
@@ -372,7 +379,7 @@ const ControllerMenu = struct {
     }
 
     // key_state == c.MAX_KEY means return to main menu
-    fn handleKeyPress(self: *ControllerMenu, destructPlayers: [*]c.destruct_player_s) bool {
+    pub fn handleKeyPress(self: *ControllerMenu, destructPlayers: [*]c.destruct_player_s) bool {
         var selection_made = false;
 
         if (self.set_key) {
@@ -422,7 +429,7 @@ const ControllerMenu = struct {
         return selection_made;
     }
 
-    fn draw(self: *const ControllerMenu, currScreen: *c.SDL_Surface, destructPlayers: [*]const c.destruct_player_s) void {
+    pub fn draw(self: *const ControllerMenu, currScreen: *c.SDL_Surface, destructPlayers: [*]const c.destruct_player_s) void {
         c.JE_clr256(currScreen);
 
         for (0..2) |i| {
@@ -470,11 +477,11 @@ const ControllerMenu = struct {
 
         c.JE_outText(currScreen, c.JE_fontCenter(&c.destructHelp[24], c.TINY_FONT), 190, &c.destructHelp[24], 3, 4);
 
-        c.JE_showVGA();
+        c.JE_showVGA(false);
     }
 };
 
-const MenuState = struct {
+pub const MenuState = struct {
     const Menus = union(enum) {
         main: MainMenu,
         new_game: NewGameMenu,
@@ -484,7 +491,7 @@ const MenuState = struct {
     state: Menus,
     screen_changed: bool,
 
-    fn handleKeyPress(
+    pub fn handleKeyPress(
         self: *MenuState,
         currScreen: *c.SDL_Surface,
         destructPrevScreen: *c.SDL_Surface,
@@ -525,7 +532,7 @@ const MenuState = struct {
         return terminal;
     }
 
-    fn draw(
+    pub fn draw(
         self: *MenuState,
         currScreen: *c.SDL_Surface,
         destructInternalScreen: *c.SDL_Surface,
@@ -562,7 +569,7 @@ fn JE_destructMenu(
 
     // Draw the menu and fade us in
     menu_state.draw(currScreen, destructInternalScreen, config, destructPlayers);
-    c.JE_showVGA();
+    c.JE_showVGA(false);
     c.fade_palette(&c.colors, 15, 0, 255);
 
     // Get input in a loop
@@ -580,7 +587,7 @@ fn JE_destructMenu(
         const exit = menu_state.handleKeyPress(currScreen, destructPrevScreen, config, destructPlayers);
         menu_state.draw(currScreen, destructInternalScreen, config, destructPlayers); // Re-draw the menu every iteration
 
-        c.JE_showVGA();
+        c.JE_showVGA(false);
 
         if (exit) {
             break;
@@ -593,7 +600,7 @@ fn JE_destructMenu(
         destructInternalScreen.*.pixels,
         @intCast(currScreen.*.h * currScreen.*.pitch),
     );
-    c.JE_showVGA();
+    c.JE_showVGA(false);
 
     return switch (menu_state.state) {
         MenuState.Menus.main => c.MODE_NONE,
@@ -607,6 +614,10 @@ export fn JE_helpScreen(
     destructPrevScreen: *c.SDL_Surface,
     destructPlayers: [*]c.destruct_player_s,
 ) void {
+    if (builtin.os.tag == .emscripten) {
+        browser_help_requested = true;
+        return;
+    }
     // JE_getVGA();  didn't do anything anyway?
     c.fade_black(15);
     _ = c.memcpy(destructPrevScreen.*.pixels, currScreen.*.pixels, @intCast(destructPrevScreen.*.h * destructPrevScreen.*.pitch));
@@ -629,7 +640,7 @@ export fn JE_helpScreen(
         const exit = menu_state.handleKeyPress(destructPlayers);
         menu_state.draw(currScreen, destructPlayers);
 
-        c.JE_showVGA();
+        c.JE_showVGA(false);
 
         if (exit) {
             break;
@@ -638,6 +649,9 @@ export fn JE_helpScreen(
 
     c.fade_black(15);
     _ = c.memcpy(currScreen.*.pixels, destructPrevScreen.*.pixels, @intCast(currScreen.*.h * currScreen.*.pitch));
-    c.JE_showVGA();
+    c.JE_showVGA(false);
     c.fade_palette(&c.colors, 15, 0, 255);
 }
+
+pub var browser_help_requested = false;
+pub export var browser_pause_requested: bool = false;

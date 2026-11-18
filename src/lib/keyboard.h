@@ -37,6 +37,7 @@ extern Sint32 mouse_x, mouse_y;
 extern Uint8 keysactive[SDL_NUM_SCANCODES];
 
 extern bool windowHasFocus;
+extern bool quit_requested;
 
 extern bool new_text;
 extern char last_text[SDL_TEXTINPUTEVENT_TEXT_SIZE];

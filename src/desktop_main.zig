@@ -48,7 +48,8 @@ pub fn main() u8 {
         std.log.err("Failed to initialize SDL: {s}", .{SDL.SDL_GetError()});
         return 0xFF;
     }
-    defer c.SDL_Quit();
+    // The browser owns the game after main returns; its quit callback cleans up.
+    defer if (builtin.os.tag != .emscripten) shutdown();
 
     // Note for this reorganization:
     // Tyrian 2000 requires help text to be loaded before the configuration,
@@ -59,26 +60,17 @@ pub fn main() u8 {
     c.JE_loadHelpText(destruct.assets.texts.ptr, destruct.assets.texts.len);
 
     c.JE_loadConfiguration();
-    defer {
-        // TODO?
-        // JE_drawANSI("exitmsg.bin");
-        // JE_gotoXY(1,22);
-        c.JE_saveConfiguration();
-    }
 
     c.init_video("destruct");
-    defer c.deinit_video();
 
     c.init_keyboard();
     std.log.debug("assuming mouse detected", .{}); // SDL can't tell us if there isn't one
 
     c.JE_loadPals(destruct.assets.palettes.ptr, destruct.assets.palettes.len);
     c.JE_loadMainShapeTables(destruct.assets.fonts.ptr, destruct.assets.fonts.len);
-    defer c.free_main_shape_tables();
 
     std.log.debug("initializing SDL audio...", .{});
     _ = c.init_audio();
-    defer c.deinit_audio();
 
     c.load_music(destruct.assets.music.ptr, destruct.assets.music.len); // leaks memory of song_offset
     c.loadSndFile(
@@ -87,13 +79,21 @@ pub fn main() u8 {
         destruct.assets.voice_samples.ptr,
         destruct.assets.voice_samples.len,
     );
-    defer {
-        for (0..c.SOUND_COUNT) |i| {
-            c.free(c.soundSamples[i]);
-        }
+    if (builtin.os.tag == .emscripten) {
+        @import("web_main.zig").start(shutdown);
+    } else {
+        destruct.JE_destructGame();
     }
 
-    destruct.JE_destructGame();
-
     return 0;
+}
+
+fn shutdown() void {
+    for (0..c.SOUND_COUNT) |i| c.free(c.soundSamples[i]);
+    c.deinit_audio();
+    c.free_main_shape_tables();
+    c.deinit_video();
+    c.JE_saveConfiguration();
+    c.SDL_Quit();
+    std.log.info("Destruct shutdown complete.", .{});
 }

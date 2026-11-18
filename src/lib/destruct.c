@@ -504,7 +504,8 @@ void JE_introScreen(SDL_Surface * screen, SDL_Surface * destructInternalScreen)
     JE_outText(screen, JE_fontCenter(specialName[SA_DESTRUCT - 1], TINY_FONT), 90, specialName[SA_DESTRUCT - 1], 12, 5);
     JE_outText(screen, JE_fontCenter(miscText[64], TINY_FONT), 180, miscText[64], 15, 2);
     JE_outText(screen, JE_fontCenter(miscText[65], TINY_FONT), 190, miscText[65], 15, 2);
-    JE_showVGA();
+    JE_showVGA(false);
+#ifndef __EMSCRIPTEN__
     fade_palette(colors, 15, 0, 255);
 
     newkey = false;
@@ -516,7 +517,8 @@ void JE_introScreen(SDL_Surface * screen, SDL_Surface * destructInternalScreen)
 
     fade_black(15);
     memcpy(screen->pixels, destructInternalScreen->pixels, screen->h * screen->pitch);
-    JE_showVGA();
+    JE_showVGA(false);
+#endif
 }
 
 static void JE_generateTerrain(const struct destruct_config_s * config,
@@ -568,7 +570,7 @@ static void JE_generateTerrain(const struct destruct_config_s * config,
         DE_generateRings(world->VGAScreen, PIXEL_BLACK);
 
     JE_aliasDirt(world->VGAScreen);
-    JE_showVGA();
+    JE_showVGA(false);
 
     memcpy(destructInternalScreen->pixels, world->VGAScreen->pixels, destructInternalScreen->pitch * destructInternalScreen->h);
 }
@@ -1050,12 +1052,18 @@ static void JE_superPixel(const SDL_Surface * destructInternalScreen, unsigned i
 
 static void JE_pauseScreen(SDL_Surface * screen, SDL_Surface * destructPrevScreen)
 {
+#ifdef __EMSCRIPTEN__
+    extern bool browser_pause_requested;
+    browser_pause_requested = true;
+    (void)screen;
+    (void)destructPrevScreen;
+#else
     set_volume(tyrMusicVolume / 2, fxVolume);
 
     /* Save our current screen/game world.  We don't want to screw it up while paused. */
     memcpy(destructPrevScreen->pixels, screen->pixels, destructPrevScreen->h * destructPrevScreen->pitch);
     JE_outText(screen, JE_fontCenter(miscText[22], TINY_FONT), 90, miscText[22], 12, 5);
-    JE_showVGA();
+    JE_showVGA(false);
 
     do  /* wait until user hits a key */
     {
@@ -1065,9 +1073,10 @@ static void JE_pauseScreen(SDL_Surface * screen, SDL_Surface * destructPrevScree
 
     /* Restore current screen & volume*/
     memcpy(screen->pixels, destructPrevScreen->pixels, screen->h * screen->pitch);
-    JE_showVGA();
+    JE_showVGA(false);
 
     set_volume(tyrMusicVolume, fxVolume);
+#endif
 }
 
 /* DE_ResetX
@@ -1213,11 +1222,13 @@ enum de_state_t DE_RunTick(const struct destruct_config_s * config,
     DE_RunTickAI(config, destruct_player);
     DE_RunTickDrawCrosshairs(destruct_player, world->VGAScreen);
     DE_RunTickDrawHUD(destruct_player, world->VGAScreen);
-    JE_showVGA();
+    JE_showVGA(false);
 
     if (destructFirstTime)
     {
+#ifndef __EMSCRIPTEN__
         fade_palette(colors, 25, 0, 255);
+#endif
         destructFirstTime = false;
         endDelay = 0;
     }
@@ -1260,7 +1271,9 @@ enum de_state_t DE_RunTick(const struct destruct_config_s * config,
         keysactive[lastkey_scan] = false;
     }
 
+#ifndef __EMSCRIPTEN__
     wait_delay();
+#endif
 
     if (keysactive[SDL_SCANCODE_ESCAPE])
     {

@@ -48,6 +48,11 @@ void setDelay(int delay)  // FKA NortSong.frameCount
 	target = SDL_GetTicks() + delay * delayPeriod;
 }
 
+Uint32 get_delay_period(void)
+{
+	return (Uint32)delayPeriod;
+}
+
 void wait_delay(void)
 {
 	Sint32 delay = target - SDL_GetTicks();

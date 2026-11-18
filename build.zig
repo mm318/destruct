@@ -61,7 +61,7 @@ pub fn build(b: *Build) !void {
     }
 
     const mod = b.createModule(.{
-        .root_source_file = b.path("src/main.zig"),
+        .root_source_file = b.path("src/desktop_main.zig"),
         .target = target,
         .optimize = optimize,
         .link_libc = true,
@@ -145,7 +145,6 @@ fn emLinkStep(b: *Build, emsdk: *Build.Dependency, lib: *Build.Step.Compile, opt
         "-sINITIAL_MEMORY=64MB",
         "-sSTACK_SIZE=16MB",
         "-sFULL_ES3=1",
-        "-sASYNCIFY=1",
     });
     emcc.addPrefixedFileArg("--shell-file=", b.path("web_assets/shell_minimal.html"));
     emcc.addArtifactArg(lib);

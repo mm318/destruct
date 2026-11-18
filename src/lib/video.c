@@ -320,9 +320,23 @@ void JE_clr256(SDL_Surface *screen)
 	SDL_FillRect(screen, NULL, 0);
 }
 
-void JE_showVGA(void) 
-{ 
-	scale_and_flip(VGAScreen); 
+void JE_showVGA(bool present)
+{
+#ifdef __EMSCRIPTEN__
+	static bool frame_dirty = false;
+	// Drawing requests queue an update; the browser loop flushes once per frame.
+	if (!present)
+	{
+		frame_dirty = true;
+		return;
+	}
+	if (!frame_dirty)
+		return;
+	frame_dirty = false;
+#else
+	(void)present;
+#endif
+	scale_and_flip(VGAScreen);
 }
 
 static void calc_dst_render_rect(SDL_Surface *const src_surface, SDL_Rect *const dst_rect)
