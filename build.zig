@@ -178,9 +178,9 @@ fn createEmsdkStep(b: *Build, emsdk: *Build.Dependency) *Build.Step.Run {
 
 fn emSdkInstallStep(b: *Build, emsdk: *Build.Dependency) *Build.Step {
     const install = createEmsdkStep(b, emsdk);
-    install.addArgs(&.{ "install", "6.0.0" });
+    install.addArgs(&.{ "install", "7.0.0" });
     const activate = createEmsdkStep(b, emsdk);
-    activate.addArgs(&.{ "activate", "6.0.0" });
+    activate.addArgs(&.{ "activate", "7.0.0" });
     activate.step.dependOn(&install.step);
     return &activate.step;
 }

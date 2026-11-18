@@ -155,10 +155,6 @@ static SDL_NORETURN void SDL_AbortAssertion(void)
     SDL_ExitProcess(42);
 }
 
-#if defined(__EMSCRIPTEN__)
-EM_JS_DEPS(sdlassert, "$allocate,$ALLOC_NORMAL,$intArrayFromString");
-#endif
-
 static SDL_assert_state SDLCALL SDL_PromptAssertion(const SDL_assert_data *data, void *userdata)
 {
     const char *envr;
@@ -263,7 +259,7 @@ static SDL_assert_state SDLCALL SDL_PromptAssertion(const SDL_assert_data *data,
         for (;;) {
             SDL_bool okay = SDL_TRUE;
             /* *INDENT-OFF* */ /* clang-format off */
-            char *buf = (char *) MAIN_THREAD_EM_ASM_PTR({
+            int reply = MAIN_THREAD_EM_ASM_INT({
                 var str =
                     UTF8ToString($0) + '\n\n' +
                     'Abort/Retry/Ignore/AlwaysIgnore? [ariA] :';
@@ -271,27 +267,25 @@ static SDL_assert_state SDLCALL SDL_PromptAssertion(const SDL_assert_data *data,
                 if (reply === null) {
                     reply = "i";
                 }
-                return allocate(intArrayFromString(reply), 'i8', ALLOC_NORMAL);
+                return reply.length === 1 ? reply.charCodeAt(0) : -1;
             }, message);
             /* *INDENT-ON* */ /* clang-format on */
 
-            if (SDL_strcmp(buf, "a") == 0) {
+            if (reply == 'a') {
                 state = SDL_ASSERTION_ABORT;
 #if 0 /* (currently) no break functionality on Emscripten */
-            } else if (SDL_strcmp(buf, "b") == 0) {
+            } else if (reply == 'b') {
                 state = SDL_ASSERTION_BREAK;
 #endif
-            } else if (SDL_strcmp(buf, "r") == 0) {
+            } else if (reply == 'r') {
                 state = SDL_ASSERTION_RETRY;
-            } else if (SDL_strcmp(buf, "i") == 0) {
+            } else if (reply == 'i') {
                 state = SDL_ASSERTION_IGNORE;
-            } else if (SDL_strcmp(buf, "A") == 0) {
+            } else if (reply == 'A') {
                 state = SDL_ASSERTION_ALWAYS_IGNORE;
             } else {
                 okay = SDL_FALSE;
             }
-            free(buf);
-
             if (okay) {
                 break;
             }

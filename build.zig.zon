@@ -20,8 +20,8 @@
             .path = "external_libs/sdl",
         },
         .emsdk = .{
-            .url = "git+https://github.com/emscripten-core/emsdk?ref=6.0.0#d223ae73c6998296e3ab27cf81dc2c2c9fd383de",
-            .hash = "N-V-__8AAFzfCQCASN6D5b3L8-QbCR9pCMDgNoKp69omdc4V",
+            .url = "git+https://github.com/emscripten-core/emsdk?ref=7.0.0#708dcbcc9ee23bc7d2dad44fc90db377e38b771c",
+            .hash = "N-V-__8AAFtICgCVOQFfkjwy7ir3VqTXKBIfbrfoKDuqstpy",
         },
     },
 

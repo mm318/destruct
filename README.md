@@ -36,7 +36,7 @@ zig build run
 
 #### Targeting Web Browser
 
-First install the pinned Emscripten 6.0.0 SDK into `zig-pkg`:
+First install the pinned Emscripten 7.0.0 SDK into `zig-pkg`:
 ```bash
 zig build install-emsdk
 ```
@@ -59,7 +59,7 @@ Asset extraction runs on the build host and stores generated files in the Zig
 build cache.
 
 Builds verified on Ubuntu 26.04 using Zig 0.17.1: native `debug`/`safe` and
-web `debug`/`fast` with Emscripten 6.0.0.
+web `debug`/`fast` with Emscripten 7.0.0.
 
 Thanks to [sdl-zig-demo-emscripten](https://github.com/silbinarywolf/sdl-zig-demo-emscripten)
 and [sokol-zig](https://github.com/floooh/sokol-zig/) for being great references!
