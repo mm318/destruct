@@ -5,6 +5,8 @@ pub fn main(init: std.process.Init) !void {
     if (args.len != 3) return error.ExpectedArchiveAndDestination;
 
     const io = init.io;
+    // Build steps may rerun with existing output; ZIP extraction requires new files.
+    try std.Io.Dir.cwd().deleteTree(io, args[2]);
     const destination = try std.Io.Dir.cwd().createDirPathOpen(io, args[2], .{});
     defer destination.close(io);
     const archive = try std.Io.Dir.cwd().openFile(io, args[1], .{});
